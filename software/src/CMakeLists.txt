@@ -4,6 +4,7 @@ add_library(cirradio_lib STATIC
     security/CryptoEngine.cpp
     security/SoftCryptoHal.cpp
     fhss/HopSequencer.cpp
+    tdma/SlotScheduler.cpp
 )
 target_include_directories(cirradio_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(cirradio_lib PUBLIC
