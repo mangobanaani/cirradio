@@ -1,6 +1,8 @@
 add_library(cirradio_lib STATIC
     hal/SimChannel.cpp
     hal/SimRadioHal.cpp
+    security/CryptoEngine.cpp
+    security/SoftCryptoHal.cpp
 )
 target_include_directories(cirradio_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(cirradio_lib PUBLIC
