@@ -5,6 +5,7 @@ add_executable(cirradio_tests
     test_crypto.cpp
     test_hop_sequencer.cpp
     test_tdma.cpp
+    test_sca_core.cpp
 )
 target_link_libraries(cirradio_tests PRIVATE
     cirradio_lib
