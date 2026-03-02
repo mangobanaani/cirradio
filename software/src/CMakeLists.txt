@@ -7,6 +7,8 @@ add_library(cirradio_lib STATIC
     tdma/SlotScheduler.cpp
     core/ComponentManager.cpp
     core/PropertyService.cpp
+    network/RouteTable.cpp
+    network/MeshRouter.cpp
 )
 target_include_directories(cirradio_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(cirradio_lib PUBLIC
