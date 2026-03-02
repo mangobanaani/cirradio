@@ -9,6 +9,8 @@ add_library(cirradio_lib STATIC
     core/PropertyService.cpp
     network/RouteTable.cpp
     network/MeshRouter.cpp
+    network/NetJoin.cpp
+    network/PeerDiscovery.cpp
 )
 target_include_directories(cirradio_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(cirradio_lib PUBLIC

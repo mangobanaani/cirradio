@@ -7,6 +7,7 @@ add_executable(cirradio_tests
     test_tdma.cpp
     test_sca_core.cpp
     test_mesh_router.cpp
+    test_net_join.cpp
 )
 target_link_libraries(cirradio_tests PRIVATE
     cirradio_lib
