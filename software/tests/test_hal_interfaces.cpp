@@ -1,0 +1,189 @@
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/catch_approx.hpp>
+#include <memory>
+#include "hal/IRadioHal.h"
+#include "hal/ICryptoHal.h"
+#include "hal/IGpsHal.h"
+#include "hal/IAudioHal.h"
+
+using namespace cirradio::hal;
+
+// --- Mock implementations ---
+
+class MockRadioHal : public IRadioHal {
+public:
+    bool configure(const RadioConfig& config) override {
+        config_ = config;
+        return true;
+    }
+    bool tune(Frequency freq) override {
+        config_.center_freq = freq;
+        return true;
+    }
+    bool set_tx_power(PowerLevel power_dbm) override {
+        config_.tx_power = power_dbm;
+        return true;
+    }
+    bool transmit(ConstSampleBuffer samples) override {
+        return samples.size() > 0;
+    }
+    size_t receive(SampleBuffer buffer) override {
+        return 0;
+    }
+    bool set_tx_enabled(bool enabled) override {
+        tx_enabled_ = enabled;
+        return true;
+    }
+    RadioConfig current_config() const override {
+        return config_;
+    }
+
+private:
+    RadioConfig config_{};
+    bool tx_enabled_ = false;
+};
+
+class MockCryptoHal : public ICryptoHal {
+public:
+    std::optional<std::vector<uint8_t>> encrypt(
+        std::span<const uint8_t> key,
+        std::span<const uint8_t> plaintext) override {
+        return std::vector<uint8_t>(plaintext.begin(), plaintext.end());
+    }
+    std::optional<std::vector<uint8_t>> decrypt(
+        std::span<const uint8_t> key,
+        std::span<const uint8_t> ciphertext) override {
+        return std::vector<uint8_t>(ciphertext.begin(), ciphertext.end());
+    }
+    std::optional<std::vector<uint8_t>> wrap_key(
+        std::span<const uint8_t> kek,
+        std::span<const uint8_t> key_to_wrap) override {
+        return std::vector<uint8_t>(key_to_wrap.begin(), key_to_wrap.end());
+    }
+    std::optional<std::vector<uint8_t>> unwrap_key(
+        std::span<const uint8_t> kek,
+        std::span<const uint8_t> wrapped_key) override {
+        return std::vector<uint8_t>(wrapped_key.begin(), wrapped_key.end());
+    }
+    std::optional<std::vector<uint8_t>> sign(
+        std::span<const uint8_t> private_key,
+        std::span<const uint8_t> data) override {
+        return std::vector<uint8_t>{0x00};
+    }
+    bool verify(
+        std::span<const uint8_t> public_key,
+        std::span<const uint8_t> data,
+        std::span<const uint8_t> signature) override {
+        return true;
+    }
+};
+
+class MockGpsHal : public IGpsHal {
+public:
+    std::optional<GpsPosition> get_position() override {
+        return GpsPosition{60.1699, 24.9384, 10.0,
+                           std::chrono::steady_clock::now(), true};
+    }
+    std::optional<Timestamp> get_time() override {
+        return std::chrono::steady_clock::now();
+    }
+    std::optional<Timestamp> get_pps_timestamp() override {
+        return std::chrono::steady_clock::now();
+    }
+};
+
+class MockAudioHal : public IAudioHal {
+public:
+    std::vector<int16_t> capture(size_t num_samples) override {
+        return std::vector<int16_t>(num_samples, 0);
+    }
+    bool playback(std::span<const int16_t> samples) override {
+        return samples.size() > 0;
+    }
+    bool set_volume(float level) override {
+        volume_ = level;
+        return true;
+    }
+
+private:
+    float volume_ = 1.0f;
+};
+
+// --- Tests ---
+
+TEST_CASE("IRadioHal mock can be instantiated and used", "[hal]") {
+    std::unique_ptr<IRadioHal> radio = std::make_unique<MockRadioHal>();
+
+    RadioConfig cfg{};
+    cfg.center_freq = 145'000'000;
+    cfg.sample_rate = 48000;
+    cfg.bandwidth = 25000;
+    cfg.tx_power = 5.0f;
+
+    REQUIRE(radio->configure(cfg));
+    REQUIRE(radio->tune(146'000'000));
+    REQUIRE(radio->set_tx_power(10.0f));
+    REQUIRE(radio->set_tx_enabled(true));
+
+    auto current = radio->current_config();
+    REQUIRE(current.center_freq == 146'000'000);
+    REQUIRE(current.tx_power == 10.0f);
+
+    std::vector<Sample> tx_samples(64, Sample{1.0f, 0.0f});
+    REQUIRE(radio->transmit(tx_samples));
+
+    std::vector<Sample> rx_buf(64);
+    REQUIRE(radio->receive(rx_buf) == 0);
+}
+
+TEST_CASE("ICryptoHal mock can be instantiated and used", "[hal]") {
+    std::unique_ptr<ICryptoHal> crypto = std::make_unique<MockCryptoHal>();
+
+    std::vector<uint8_t> key{0x01, 0x02, 0x03, 0x04};
+    std::vector<uint8_t> data{0xAA, 0xBB, 0xCC};
+
+    auto encrypted = crypto->encrypt(key, data);
+    REQUIRE(encrypted.has_value());
+    REQUIRE(encrypted->size() == data.size());
+
+    auto decrypted = crypto->decrypt(key, *encrypted);
+    REQUIRE(decrypted.has_value());
+    REQUIRE(*decrypted == data);
+
+    auto wrapped = crypto->wrap_key(key, data);
+    REQUIRE(wrapped.has_value());
+
+    auto unwrapped = crypto->unwrap_key(key, *wrapped);
+    REQUIRE(unwrapped.has_value());
+
+    auto signature = crypto->sign(key, data);
+    REQUIRE(signature.has_value());
+
+    REQUIRE(crypto->verify(key, data, *signature));
+}
+
+TEST_CASE("IGpsHal mock can be instantiated and used", "[hal]") {
+    std::unique_ptr<IGpsHal> gps = std::make_unique<MockGpsHal>();
+
+    auto pos = gps->get_position();
+    REQUIRE(pos.has_value());
+    REQUIRE(pos->valid);
+    REQUIRE(pos->latitude == Catch::Approx(60.1699));
+    REQUIRE(pos->longitude == Catch::Approx(24.9384));
+
+    auto time = gps->get_time();
+    REQUIRE(time.has_value());
+
+    auto pps = gps->get_pps_timestamp();
+    REQUIRE(pps.has_value());
+}
+
+TEST_CASE("IAudioHal mock can be instantiated and used", "[hal]") {
+    std::unique_ptr<IAudioHal> audio = std::make_unique<MockAudioHal>();
+
+    auto samples = audio->capture(128);
+    REQUIRE(samples.size() == 128);
+
+    REQUIRE(audio->playback(samples));
+    REQUIRE(audio->set_volume(0.5f));
+}
