@@ -13,6 +13,7 @@ add_executable(cirradio_tests
     test_cli.cpp
     test_radio_node.cpp
     test_integration_multinode.cpp
+    test_integration_voice.cpp
 )
 target_link_libraries(cirradio_tests PRIVATE
     cirradio_lib
