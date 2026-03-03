@@ -12,6 +12,7 @@ add_executable(cirradio_tests
     test_key_manager.cpp
     test_cli.cpp
     test_radio_node.cpp
+    test_integration_multinode.cpp
 )
 target_link_libraries(cirradio_tests PRIVATE
     cirradio_lib
