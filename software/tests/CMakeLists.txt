@@ -10,6 +10,7 @@ add_executable(cirradio_tests
     test_net_join.cpp
     test_voice.cpp
     test_key_manager.cpp
+    test_cli.cpp
 )
 target_link_libraries(cirradio_tests PRIVATE
     cirradio_lib

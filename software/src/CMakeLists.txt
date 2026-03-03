@@ -18,6 +18,7 @@ add_library(cirradio_lib STATIC
     voice/VoiceCodec.cpp
     voice/JitterBuffer.cpp
     voice/SimAudioHal.cpp
+    mgmt/CLIShell.cpp
 )
 target_include_directories(cirradio_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
