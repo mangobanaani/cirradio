@@ -1,0 +1,17 @@
+(kicad_sch
+  (version 20231120)
+  (generator "custom")
+  (generator_version "9.0")
+  (uuid "a3f7c8e1-4b2d-4e9a-b5f6-1c8d3e7a9b02")
+  (paper "A3")
+  (title_block
+    (title "CIRRADIO Dev Board")
+    (date "2026-03-03")
+    (rev "1.0")
+    (company "")
+    (comment 1 "Tactical SDR Development Board")
+    (comment 2 "Zynq-7045 + AD9361")
+  )
+  (lib_symbols)
+  (symbol_instances)
+)

@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "filename": "cirradio-devboard.kicad_pro",
+    "version": 1
+  },
+  "project": {
+    "created": "2026-03-03 00:00:00",
+    "updated": "2026-03-03 00:00:00",
+    "version": "20231231",
+    "title": "CIRRADIO Dev Board",
+    "company": "",
+    "comment1": "Tactical SDR Development Board",
+    "comment2": "Zynq-7045 + AD9361",
+    "comment3": "",
+    "comment4": ""
+  },
+  "libraries": {
+    "pinned_symbol_libs": [],
+    "pinned_footprint_libs": []
+  }
+}

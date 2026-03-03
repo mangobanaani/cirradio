@@ -1,0 +1,15 @@
+# KiCad backup/autosave
+*-backups/
+*.kicad_sch-bak
+*.kicad_pcb-bak
+_autosave-*
+fp-info-cache
+*.kicad_prl
+
+# Manufacturing outputs (regenerate from source)
+fab/gerbers/*
+fab/bom/*
+fab/assembly/*
+
+# Keep directory structure
+!.gitkeep
