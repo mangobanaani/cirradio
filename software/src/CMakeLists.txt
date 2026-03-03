@@ -6,6 +6,7 @@ add_library(cirradio_lib STATIC
     hal/SimRadioHal.cpp
     security/CryptoEngine.cpp
     security/SoftCryptoHal.cpp
+    security/KeyManager.cpp
     fhss/HopSequencer.cpp
     tdma/SlotScheduler.cpp
     core/ComponentManager.cpp

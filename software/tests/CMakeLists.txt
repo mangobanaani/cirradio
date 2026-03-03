@@ -9,6 +9,7 @@ add_executable(cirradio_tests
     test_mesh_router.cpp
     test_net_join.cpp
     test_voice.cpp
+    test_key_manager.cpp
 )
 target_link_libraries(cirradio_tests PRIVATE
     cirradio_lib
