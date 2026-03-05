@@ -1,0 +1,19 @@
+CIRRADIO Dev Board v1.0
+Fabrication Notes
+
+Layer count: 10
+Board size: 160 x 100 mm
+Board thickness: 1.6 mm
+Copper weight: 1 oz all layers
+Surface finish: ENIG (for BGA reliability)
+Solder mask: green
+Silkscreen: white
+Min trace/space: 0.1mm / 0.1mm
+Min drill: 0.2mm
+Via-in-pad: Yes, filled and capped (for BGA breakout)
+Impedance control: Yes
+  - 50 ohm single-ended microstrip (F.Cu): 0.28mm trace, ref GND1
+  - 100 ohm differential stripline (In2.Cu): 0.12mm trace, 0.20mm gap, ref GND1/GND2
+  - 50 ohm single-ended stripline (In2.Cu/In4.Cu): 0.18mm trace
+Material: FR-4 (TG170+ for lead-free assembly)
+IPC Class: 2
