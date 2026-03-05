@@ -735,7 +735,309 @@
     (effects (font (size 1.2 1.2) (thickness 0.12)))
   )
 
-  ;; Mounting holes - M3, 3.2mm drill, 6mm pad
+  ;
+
+  ;; ===== GROUND PLANES =====
+  (zone
+    (net 1)
+    (net_name "GND")
+    (layer "In1.Cu")
+    (uuid "1c7a75ff-b6e5-4a97-b27b-95878defca42")
+    (name "GND1")
+    (hatch edge 0.5)
+    (connect_pads
+      (clearance 0.2)
+    )
+    (min_thickness 0.2)
+    (filled_areas_thickness no)
+    (fill yes
+      (thermal_gap 0.3)
+      (thermal_bridge_width 0.3)
+    )
+    (polygon
+      (pts
+        (xy 0 0) (xy 160.0 0) (xy 160.0 100.0) (xy 0 100.0)
+      )
+    )
+  )
+  (zone
+    (net 1)
+    (net_name "GND")
+    (layer "In3.Cu")
+    (uuid "264e5bf0-8459-476e-ba4d-3051e19c69ae")
+    (name "GND2")
+    (hatch edge 0.5)
+    (connect_pads
+      (clearance 0.2)
+    )
+    (min_thickness 0.2)
+    (filled_areas_thickness no)
+    (fill yes
+      (thermal_gap 0.3)
+      (thermal_bridge_width 0.3)
+    )
+    (polygon
+      (pts
+        (xy 0 0) (xy 160.0 0) (xy 160.0 100.0) (xy 0 100.0)
+      )
+    )
+  )
+  (zone
+    (net 1)
+    (net_name "GND")
+    (layer "In7.Cu")
+    (uuid "cb99c609-3d6e-4c8a-8f21-943ef89de4f2")
+    (name "GND3")
+    (hatch edge 0.5)
+    (connect_pads
+      (clearance 0.2)
+    )
+    (min_thickness 0.2)
+    (filled_areas_thickness no)
+    (fill yes
+      (thermal_gap 0.3)
+      (thermal_bridge_width 0.3)
+    )
+    (polygon
+      (pts
+        (xy 0 0) (xy 160.0 0) (xy 160.0 100.0) (xy 0 100.0)
+      )
+    )
+  )
+
+  ;; ===== POWER PLANE (In5.Cu) - SPLIT REGIONS =====
+  (zone
+    (net 3)
+    (net_name "+1V0")
+    (layer "In5.Cu")
+    (uuid "dd807e46-3d44-4e12-ad6f-6ea2a2dd25f4")
+    (name "PWR_1V0")
+    (priority 1)
+    (hatch edge 0.5)
+    (connect_pads
+      (clearance 0.15)
+    )
+    (min_thickness 0.2)
+    (filled_areas_thickness no)
+    (fill yes
+      (thermal_gap 0.3)
+      (thermal_bridge_width 0.3)
+    )
+    (polygon
+      (pts
+        (xy 30 30) (xy 130 30) (xy 130 70) (xy 30 70)
+      )
+    )
+  )
+  (zone
+    (net 6)
+    (net_name "+1V35")
+    (layer "In5.Cu")
+    (uuid "1a1ea513-94ff-4cff-a50c-82a04b58f234")
+    (name "PWR_1V35")
+    (priority 1)
+    (hatch edge 0.5)
+    (connect_pads
+      (clearance 0.15)
+    )
+    (min_thickness 0.2)
+    (filled_areas_thickness no)
+    (fill yes
+      (thermal_gap 0.3)
+      (thermal_bridge_width 0.3)
+    )
+    (polygon
+      (pts
+        (xy 100 20) (xy 145 20) (xy 145 60) (xy 100 60)
+      )
+    )
+  )
+  (zone
+    (net 10)
+    (net_name "+1V5")
+    (layer "In5.Cu")
+    (uuid "18722c7f-2bf8-4be5-9f06-464131484260")
+    (name "PWR_1V5")
+    (priority 1)
+    (hatch edge 0.5)
+    (connect_pads
+      (clearance 0.15)
+    )
+    (min_thickness 0.2)
+    (filled_areas_thickness no)
+    (fill yes
+      (thermal_gap 0.3)
+      (thermal_bridge_width 0.3)
+    )
+    (polygon
+      (pts
+        (xy 55 30) (xy 75 30) (xy 75 50) (xy 55 50)
+      )
+    )
+  )
+  (zone
+    (net 13)
+    (net_name "+1V8")
+    (layer "In5.Cu")
+    (uuid "b0d789c5-1464-4ad5-b034-5a3efab0015a")
+    (name "PWR_1V8")
+    (priority 1)
+    (hatch edge 0.5)
+    (connect_pads
+      (clearance 0.15)
+    )
+    (min_thickness 0.2)
+    (filled_areas_thickness no)
+    (fill yes
+      (thermal_gap 0.3)
+      (thermal_bridge_width 0.3)
+    )
+    (polygon
+      (pts
+        (xy 60 0) (xy 100 0) (xy 100 35) (xy 60 35)
+      )
+    )
+  )
+  (zone
+    (net 13)
+    (net_name "+1V8")
+    (layer "In5.Cu")
+    (uuid "8b20e1f2-a651-4941-a823-baa6571f7f1d")
+    (name "PWR_1V8")
+    (priority 1)
+    (hatch edge 0.5)
+    (connect_pads
+      (clearance 0.15)
+    )
+    (min_thickness 0.2)
+    (filled_areas_thickness no)
+    (fill yes
+      (thermal_gap 0.3)
+      (thermal_bridge_width 0.3)
+    )
+    (polygon
+      (pts
+        (xy 40 30) (xy 60 30) (xy 60 60) (xy 40 60)
+      )
+    )
+  )
+  (zone
+    (net 16)
+    (net_name "+3V3")
+    (layer "In5.Cu")
+    (uuid "004a04b7-02d7-4a34-bbff-d29ec73bdd46")
+    (name "PWR_3V3")
+    (priority 1)
+    (hatch edge 0.5)
+    (connect_pads
+      (clearance 0.15)
+    )
+    (min_thickness 0.2)
+    (filled_areas_thickness no)
+    (fill yes
+      (thermal_gap 0.3)
+      (thermal_bridge_width 0.3)
+    )
+    (polygon
+      (pts
+        (xy 100 60) (xy 160 60) (xy 160 100) (xy 100 100)
+      )
+    )
+  )
+  (zone
+    (net 16)
+    (net_name "+3V3")
+    (layer "In5.Cu")
+    (uuid "11d1dbc4-c464-4da5-946b-bcd8dc75a9ae")
+    (name "PWR_3V3")
+    (priority 1)
+    (hatch edge 0.5)
+    (connect_pads
+      (clearance 0.15)
+    )
+    (min_thickness 0.2)
+    (filled_areas_thickness no)
+    (fill yes
+      (thermal_gap 0.3)
+      (thermal_bridge_width 0.3)
+    )
+    (polygon
+      (pts
+        (xy 135 0) (xy 160 0) (xy 160 30) (xy 135 30)
+      )
+    )
+  )
+  (zone
+    (net 20)
+    (net_name "+5V")
+    (layer "In5.Cu")
+    (uuid "6586db75-6faf-48e8-ba48-19f9a24ee703")
+    (name "PWR_5V")
+    (priority 1)
+    (hatch edge 0.5)
+    (connect_pads
+      (clearance 0.15)
+    )
+    (min_thickness 0.2)
+    (filled_areas_thickness no)
+    (fill yes
+      (thermal_gap 0.3)
+      (thermal_bridge_width 0.3)
+    )
+    (polygon
+      (pts
+        (xy 0 15) (xy 25 15) (xy 25 35) (xy 0 35)
+      )
+    )
+  )
+
+  ;; ===== GROUND FLOOD FILLS (F.Cu and B.Cu) =====
+  (zone
+    (net 1)
+    (net_name "GND")
+    (layer "F.Cu")
+    (uuid "24e78f41-761f-479d-8b80-3965f3bcbefb")
+    (name "GND_TOP")
+    (hatch edge 0.5)
+    (connect_pads
+      (clearance 0.2)
+    )
+    (min_thickness 0.2)
+    (filled_areas_thickness no)
+    (fill yes
+      (thermal_gap 0.3)
+      (thermal_bridge_width 0.3)
+    )
+    (polygon
+      (pts
+        (xy 0 0) (xy 160.0 0) (xy 160.0 100.0) (xy 0 100.0)
+      )
+    )
+  )
+  (zone
+    (net 1)
+    (net_name "GND")
+    (layer "B.Cu")
+    (uuid "f40671ee-dece-4525-8fae-a9e62a91754a")
+    (name "GND_BOT")
+    (hatch edge 0.5)
+    (connect_pads
+      (clearance 0.2)
+    )
+    (min_thickness 0.2)
+    (filled_areas_thickness no)
+    (fill yes
+      (thermal_gap 0.3)
+      (thermal_bridge_width 0.3)
+    )
+    (polygon
+      (pts
+        (xy 0 0) (xy 160.0 0) (xy 160.0 100.0) (xy 0 100.0)
+      )
+    )
+  )
+
+; Mounting holes - M3, 3.2mm drill, 6mm pad
 
 
   ;; ===== MOUNTING HOLES =====
