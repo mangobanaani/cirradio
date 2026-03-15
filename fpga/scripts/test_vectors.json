@@ -1,0 +1,66 @@
+[
+  {
+    "fhek": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "slot": 0,
+    "frame": 0,
+    "attempt": 0,
+    "channel_index": 117,
+    "freq_khz": 342000
+  },
+  {
+    "fhek": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "slot": 0,
+    "frame": 1,
+    "attempt": 0,
+    "channel_index": 199,
+    "freq_khz": 424000
+  },
+  {
+    "fhek": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "slot": 0,
+    "frame": 100,
+    "attempt": 0,
+    "channel_index": 101,
+    "freq_khz": 326000
+  },
+  {
+    "fhek": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "slot": 1,
+    "frame": 0,
+    "attempt": 0,
+    "channel_index": 0,
+    "freq_khz": 225000
+  },
+  {
+    "fhek": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "slot": 5,
+    "frame": 50,
+    "attempt": 0,
+    "channel_index": 252,
+    "freq_khz": 477000
+  },
+  {
+    "fhek": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "slot": 19,
+    "frame": 999,
+    "attempt": 0,
+    "channel_index": 80,
+    "freq_khz": 305000
+  },
+  {
+    "fhek": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "slot": 0,
+    "frame": 0,
+    "attempt": 0,
+    "channel_index": 50,
+    "freq_khz": 275000
+  },
+  {
+    "fhek": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+    "slot": 0,
+    "frame": 0,
+    "attempt": 1,
+    "channel_index": 146,
+    "freq_khz": 371000
+  }
+]
