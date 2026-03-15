@@ -14,6 +14,13 @@ cmake_policy(SET CMP0167 NEW)
 find_package(Boost REQUIRED)
 find_package(OpenSSL REQUIRED)
 
+find_program(PESQ_BINARY pesq DOC "ITU-T P.862 PESQ reference binary")
+if(PESQ_BINARY)
+    message(STATUS "PESQ binary found: ${PESQ_BINARY}")
+else()
+    message(STATUS "PESQ binary not found — MOS-LQO tests will be skipped.")
+endif()
+
 add_subdirectory(src)
 
 if(CIRRADIO_BUILD_TESTS)
