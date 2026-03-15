@@ -8,6 +8,7 @@ add_library(cirradio_lib STATIC
     security/SoftCryptoHal.cpp
     security/KeyManager.cpp
     security/Pkcs11Hsm.cpp
+    security/SoftHsm.cpp
     fhss/HopSequencer.cpp
     tdma/SlotScheduler.cpp
     core/ComponentManager.cpp

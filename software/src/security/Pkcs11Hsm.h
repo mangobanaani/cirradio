@@ -42,6 +42,12 @@ protected:
     CK_SESSION_HANDLE  session_ = 0;
     CK_SLOT_ID         slot_id_ = 0;
 
+    // Exposed to SoftHsm for export_raw / import_raw.
+    CK_RV ck_get_attribute(CK_OBJECT_HANDLE obj,
+                           CK_ATTRIBUTE* templ, CK_ULONG count);
+    CK_RV ck_create_object(CK_ATTRIBUTE* templ, CK_ULONG count,
+                           CK_OBJECT_HANDLE* obj);
+
 private:
     static constexpr size_t kIvLen  = 12;
     static constexpr size_t kTagLen = 16;
@@ -75,10 +81,6 @@ private:
                         CK_BYTE_PTR in, CK_ULONG in_len,
                         CK_ATTRIBUTE* templ, CK_ULONG count,
                         CK_OBJECT_HANDLE* new_key);
-    CK_RV ck_get_attribute(CK_OBJECT_HANDLE obj,
-                           CK_ATTRIBUTE* templ, CK_ULONG count);
-    CK_RV ck_create_object(CK_ATTRIBUTE* templ, CK_ULONG count,
-                           CK_OBJECT_HANDLE* obj);
 };
 
 }  // namespace cirradio::security
