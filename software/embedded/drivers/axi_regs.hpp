@@ -3,6 +3,8 @@
 // DO NOT EDIT without updating regs.svh and re-running check_regmap.py.
 #pragma once
 #include <cstdint>
+#include <cstddef>
+#include <span>
 
 namespace cirradio::drivers {
 
@@ -29,9 +31,35 @@ constexpr uint32_t REG_HOP_COUNTER     = 0x088;
 constexpr uint32_t REG_ERR_BASE        = 0x08C;
 
 // Reset values
-constexpr uint32_t REG_STATUS_RESET    = 0x00000002u;
-constexpr uint32_t REG_RSSI_RESET      = 0xFFFF8300u;
-constexpr uint32_t REG_TX_POWER_RESET  = 0x00000000u;
+constexpr uint32_t REG_STATUS_RESET      = 0x00000002u;
+constexpr uint32_t REG_RSSI_RESET        = 0xFFFF8300u;
+constexpr uint32_t REG_TX_POWER_RESET    = 0x00000000u;
 constexpr uint32_t REG_SLOT_BITMAP_RESET = 0x00000000u;
+
+class AxiRegs {
+public:
+    static constexpr size_t PAGE_SIZE = 4096;
+    explicit AxiRegs(const char* uio_dev = "/dev/uio0");
+    ~AxiRegs();
+    AxiRegs(const AxiRegs&) = delete;
+    AxiRegs& operator=(const AxiRegs&) = delete;
+
+    void set_fhek(std::span<const uint8_t> fhek);
+    void set_blacklist(std::span<const uint32_t> freqs_khz);
+    void set_slot_bitmap(uint32_t bitmap);
+    void set_tx_power(int32_t dBm_x100);
+
+    uint32_t status() const;
+    bool hop_locked() const;
+    bool gps_holdover() const;
+    int32_t rssi_dBm_x100() const;
+    uint32_t hop_counter() const;
+
+private:
+    int fd_ = -1;
+    volatile uint32_t* base_ = nullptr;
+    void write_reg(uint32_t offset, uint32_t value);
+    uint32_t read_reg(uint32_t offset) const;
+};
 
 } // namespace cirradio::drivers
