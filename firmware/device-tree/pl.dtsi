@@ -1,0 +1,60 @@
+// firmware/device-tree/pl.dtsi
+// PL peripheral nodes — loaded after bitstream by fpga-manager.
+// Base addresses match Vivado block design address map.
+
+/ {
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		// 64 MB carve-out for AXI DMA I/Q buffers at top of 1 GB DDR3L
+		iq_dma_reserved: buffer@3c000000 {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0x3c000000 0x4000000>;
+		};
+	};
+
+	amba_pl: amba_pl {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		compatible = "simple-bus";
+
+		// AXI DMA for I/Q streaming
+		axi_dma_iq: dma@40400000 {
+			compatible = "xlnx,axi-dma-1.00.a";
+			reg = <0x40400000 0x10000>;
+			interrupts = <0 29 4>, <0 30 4>;
+			interrupt-parent = <&intc>;
+			xlnx,addrwidth = <32>;
+			memory-region = <&iq_dma_reserved>;
+			dma-channel@40400000 {
+				compatible = "xlnx,axi-dma-mm2s-channel";
+				interrupts = <0 29 4>;
+			};
+			dma-channel@40400030 {
+				compatible = "xlnx,axi-dma-s2mm-channel";
+				interrupts = <0 30 4>;
+			};
+		};
+
+		// UIO for axi_regs 4 KB register page
+		axi_regs_uio: uio@43c00000 {
+			compatible = "generic-uio";
+			reg = <0x43c00000 0x1000>;
+			interrupt-parent = <&intc>;
+		};
+
+		// AXI GPIO: T/R switch [0], PA enable [1], LEDs [2:5]
+		axi_gpio_rf: gpio@41200000 {
+			compatible = "xlnx,xps-gpio-1.00.a";
+			reg = <0x41200000 0x10000>;
+			#gpio-cells = <2>;
+			gpio-controller;
+			xlnx,all-outputs = <0x1>;
+			xlnx,gpio-width = <0x8>;
+		};
+	};
+};

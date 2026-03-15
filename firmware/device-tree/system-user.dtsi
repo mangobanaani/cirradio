@@ -1,0 +1,57 @@
+// firmware/device-tree/system-user.dtsi
+// Extends auto-generated device tree with board-specific nodes.
+/include/ "system-conf.dtsi"
+/ {
+	model = "CIRRADIO Dev Board";
+
+	fpga_full: fpga-region0 {
+		compatible = "fpga-region";
+		fpga-mgr = <&devcfg>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		firmware-name = "cirradio.bit";
+	};
+};
+
+// AD9361 on SPI0
+&spi0 {
+	status = "okay";
+	num-cs = <1>;
+	ad9361_phy: ad9361-phy@0 {
+		compatible = "adi,ad9361";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+		clocks = <&ref_clk>;
+		clock-names = "clkin";
+		adi,port-0-lvds-voltage = <1>;
+		adi,lvds-bias-mV = <150>;
+		adi,digital-interface-tune-skip-mode = <0>;
+		adi,pp-rx-swap-enable;
+		adi,rx-path-clock-frequencies = <491520000 245760000 122880000 61440000 30720000 30720000>;
+		adi,tx-path-clock-frequencies = <491520000 245760000 122880000 61440000 30720000 30720000>;
+		adi,rx-rf-port-input-select = <0>;
+		adi,tx-rf-port-input-select = <0>;
+	};
+};
+
+// 40 MHz OCXO reference clock
+ref_clk: ref_clk {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <40000000>;
+	clock-output-names = "ref_clk";
+};
+
+// GPS on UART1
+&uart1 {
+	status = "okay";
+};
+
+// eMMC via SDHCI0 (8-bit bus, non-removable)
+&sdhci0 {
+	status = "okay";
+	bus-width = <8>;
+	non-removable;
+	no-1-8-v;
+};
