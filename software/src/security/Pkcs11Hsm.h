@@ -42,11 +42,20 @@ protected:
     CK_SESSION_HANDLE  session_ = 0;
     CK_SLOT_ID         slot_id_ = 0;
 
-    // Exposed to SoftHsm for export_raw / import_raw.
+    // Exposed to SoftHsm for export_raw / import_raw / generate_key / unwrap_key.
     CK_RV ck_get_attribute(CK_OBJECT_HANDLE obj,
                            CK_ATTRIBUTE* templ, CK_ULONG count);
     CK_RV ck_create_object(CK_ATTRIBUTE* templ, CK_ULONG count,
                            CK_OBJECT_HANDLE* obj);
+    CK_RV ck_generate_key(CK_MECHANISM* mech,
+                          CK_ATTRIBUTE* templ, CK_ULONG count,
+                          CK_OBJECT_HANDLE* key);
+    CK_RV ck_unwrap_key(CK_MECHANISM* mech, CK_OBJECT_HANDLE wrapping,
+                        CK_BYTE_PTR in, CK_ULONG in_len,
+                        CK_ATTRIBUTE* templ, CK_ULONG count,
+                        CK_OBJECT_HANDLE* new_key);
+    CK_RV ck_logout(CK_SESSION_HANDLE s);
+    CK_RV ck_close_session(CK_SESSION_HANDLE s);
 
 private:
     static constexpr size_t kIvLen  = 12;
@@ -59,14 +68,9 @@ private:
                            CK_SLOT_ID* slots, CK_ULONG* count);
     CK_RV ck_open_session(CK_SLOT_ID slot, CK_FLAGS flags,
                           CK_SESSION_HANDLE* phSession);
-    CK_RV ck_close_session(CK_SESSION_HANDLE s);
     CK_RV ck_login(CK_SESSION_HANDLE s, CK_USER_TYPE user,
                    CK_UTF8CHAR_PTR pin, CK_ULONG len);
-    CK_RV ck_logout(CK_SESSION_HANDLE s);
     CK_RV ck_finalize(void* args);
-    CK_RV ck_generate_key(CK_MECHANISM* mech,
-                          CK_ATTRIBUTE* templ, CK_ULONG count,
-                          CK_OBJECT_HANDLE* key);
     CK_RV ck_destroy_object(CK_OBJECT_HANDLE obj);
     CK_RV ck_encrypt_init(CK_MECHANISM* mech, CK_OBJECT_HANDLE key);
     CK_RV ck_encrypt(CK_BYTE_PTR in, CK_ULONG in_len,
@@ -77,10 +81,6 @@ private:
     CK_RV ck_wrap_key(CK_MECHANISM* mech, CK_OBJECT_HANDLE wrapping,
                       CK_OBJECT_HANDLE to_wrap,
                       CK_BYTE_PTR out, CK_ULONG* out_len);
-    CK_RV ck_unwrap_key(CK_MECHANISM* mech, CK_OBJECT_HANDLE wrapping,
-                        CK_BYTE_PTR in, CK_ULONG in_len,
-                        CK_ATTRIBUTE* templ, CK_ULONG count,
-                        CK_OBJECT_HANDLE* new_key);
 };
 
 }  // namespace cirradio::security

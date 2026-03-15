@@ -54,9 +54,8 @@ RadioNode::RadioNode(uint32_t id, std::shared_ptr<hal::SimChannel> channel)
     , channel_(std::move(channel)) {
     // Create subsystems that don't depend on keys
     radio_ = std::make_unique<hal::SimRadioHal>(channel_);
-    crypto_engine_ = std::make_unique<security::CryptoEngine>();
-    soft_crypto_ = std::make_shared<security::SoftCryptoHal>();
-    key_mgr_ = std::make_unique<security::KeyManager>();
+    hsm_ = std::make_unique<security::SoftHsm>();
+    key_mgr_ = std::make_unique<security::KeyManager>(*hsm_);
     scheduler_ = std::make_unique<tdma::SlotScheduler>(id);
     router_ = std::make_unique<network::MeshRouter>(id);
     discovery_ = std::make_unique<network::PeerDiscovery>(id);
@@ -70,7 +69,7 @@ RadioNode::RadioNode(uint32_t id, std::shared_ptr<hal::SimChannel> channel)
 
     // Create NetJoin with identity keys
     net_join_ = std::make_unique<network::NetJoin>(
-        id, soft_crypto_, identity_private_key_, identity_public_key_);
+        id, identity_private_key_, identity_public_key_);
 
     spdlog::debug("RadioNode {} created", id_);
 }
@@ -89,16 +88,18 @@ void RadioNode::start() {
     // Initialize keys
     if (keys_provisioned_) {
         key_mgr_->initialize_kek();
-        key_mgr_->set_tek(provisioned_tek_);
-        key_mgr_->set_fhek(provisioned_fhek_);
+        key_mgr_->set_tek_raw(provisioned_tek_);
+        key_mgr_->set_fhek_raw(provisioned_fhek_);
     } else {
-        key_mgr_->initialize_kek();
-        key_mgr_->generate_tek();
-        key_mgr_->generate_fhek();
+        if (!key_mgr_->is_initialized()) {
+            key_mgr_->initialize_kek();
+            key_mgr_->generate_tek();
+            key_mgr_->generate_fhek();
+        }
     }
 
     // Create HopSequencer with the FHEK
-    auto fhek = key_mgr_->current_fhek();
+    auto fhek = key_mgr_->export_fhek_for_fpga();
     hop_seq_ = std::make_unique<fhss::HopSequencer>(
         std::span<const uint8_t>(fhek), kMinFreq, kMaxFreq, kChannelSpacing);
 
@@ -183,8 +184,7 @@ void RadioNode::tick() {
 
                     // Decrypt if we have a TEK
                     if (key_mgr_->is_initialized()) {
-                        auto decrypted = crypto_engine_->decrypt(
-                            key_mgr_->current_tek(), payload);
+                        auto decrypted = key_mgr_->decrypt_with_tek(payload);
                         if (decrypted) {
                             data_inbox_.push_back(
                                 ReceivedData{parsed_hdr->src_node, *decrypted});
@@ -198,8 +198,7 @@ void RadioNode::tick() {
                         rx_data.begin() + static_cast<std::ptrdiff_t>(msg_end));
 
                     if (key_mgr_->is_initialized()) {
-                        auto decrypted = crypto_engine_->decrypt(
-                            key_mgr_->current_tek(), payload);
+                        auto decrypted = key_mgr_->decrypt_with_tek(payload);
                         if (decrypted) {
                             // Decode voice
                             auto audio = voice_codec_->decode(*decrypted);
@@ -236,8 +235,7 @@ void RadioNode::tick() {
                         hop_data.begin() + static_cast<std::ptrdiff_t>(offset + 13),
                         hop_data.begin() + static_cast<std::ptrdiff_t>(msg_end));
                     if (key_mgr_->is_initialized()) {
-                        auto decrypted = crypto_engine_->decrypt(
-                            key_mgr_->current_tek(), payload);
+                        auto decrypted = key_mgr_->decrypt_with_tek(payload);
                         if (decrypted) {
                             data_inbox_.push_back(
                                 ReceivedData{parsed_hdr->src_node, *decrypted});
@@ -249,8 +247,7 @@ void RadioNode::tick() {
                         hop_data.begin() + static_cast<std::ptrdiff_t>(offset + 13),
                         hop_data.begin() + static_cast<std::ptrdiff_t>(msg_end));
                     if (key_mgr_->is_initialized()) {
-                        auto decrypted = crypto_engine_->decrypt(
-                            key_mgr_->current_tek(), payload);
+                        auto decrypted = key_mgr_->decrypt_with_tek(payload);
                         if (decrypted) {
                             auto audio = voice_codec_->decode(*decrypted);
                             voice_inbox_.push_back(
@@ -279,7 +276,7 @@ void RadioNode::send_data(uint32_t dest, const std::vector<uint8_t>& payload) {
     }
 
     // Encrypt payload with TEK
-    auto encrypted = crypto_engine_->encrypt(key_mgr_->current_tek(), payload);
+    auto encrypted = key_mgr_->encrypt_with_tek(payload);
     if (!encrypted) {
         return;
     }
@@ -318,7 +315,7 @@ void RadioNode::voice_tx(uint32_t dest, const std::vector<int16_t>& audio) {
     auto encoded = voice_codec_->encode(audio);
 
     // Encrypt with TEK
-    auto encrypted = crypto_engine_->encrypt(key_mgr_->current_tek(), encoded);
+    auto encrypted = key_mgr_->encrypt_with_tek(encoded);
     if (!encrypted) {
         return;
     }
@@ -402,8 +399,6 @@ void RadioNode::generate_identity_keys() {
 
 void RadioNode::transmit_on_channel(hal::Frequency freq,
                                     const std::vector<uint8_t>& payload) {
-    // Tune the radio to the target frequency and transmit via SimRadioHal,
-    // which uses the proper registered radio_id internally.
     radio_->tune(freq);
     auto samples = bytes_to_samples(payload);
     hal::ConstSampleBuffer buf(samples);
@@ -411,7 +406,6 @@ void RadioNode::transmit_on_channel(hal::Frequency freq,
 }
 
 std::vector<uint8_t> RadioNode::receive_from_channel(hal::Frequency freq) {
-    // Tune to the frequency and receive via SimRadioHal
     radio_->tune(freq);
     std::vector<hal::Sample> buffer(4096);
     size_t n = radio_->receive(std::span<hal::Sample>(buffer));

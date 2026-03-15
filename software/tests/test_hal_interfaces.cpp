@@ -2,7 +2,6 @@
 #include <catch2/catch_approx.hpp>
 #include <memory>
 #include "hal/IRadioHal.h"
-#include "hal/ICryptoHal.h"
 #include "hal/IGpsHal.h"
 #include "hal/IAudioHal.h"
 
@@ -41,41 +40,6 @@ public:
 private:
     RadioConfig config_{};
     bool tx_enabled_ = false;
-};
-
-class MockCryptoHal : public ICryptoHal {
-public:
-    std::optional<std::vector<uint8_t>> encrypt(
-        std::span<const uint8_t> key,
-        std::span<const uint8_t> plaintext) override {
-        return std::vector<uint8_t>(plaintext.begin(), plaintext.end());
-    }
-    std::optional<std::vector<uint8_t>> decrypt(
-        std::span<const uint8_t> key,
-        std::span<const uint8_t> ciphertext) override {
-        return std::vector<uint8_t>(ciphertext.begin(), ciphertext.end());
-    }
-    std::optional<std::vector<uint8_t>> wrap_key(
-        std::span<const uint8_t> kek,
-        std::span<const uint8_t> key_to_wrap) override {
-        return std::vector<uint8_t>(key_to_wrap.begin(), key_to_wrap.end());
-    }
-    std::optional<std::vector<uint8_t>> unwrap_key(
-        std::span<const uint8_t> kek,
-        std::span<const uint8_t> wrapped_key) override {
-        return std::vector<uint8_t>(wrapped_key.begin(), wrapped_key.end());
-    }
-    std::optional<std::vector<uint8_t>> sign(
-        std::span<const uint8_t> private_key,
-        std::span<const uint8_t> data) override {
-        return std::vector<uint8_t>{0x00};
-    }
-    bool verify(
-        std::span<const uint8_t> public_key,
-        std::span<const uint8_t> data,
-        std::span<const uint8_t> signature) override {
-        return true;
-    }
 };
 
 class MockGpsHal : public IGpsHal {
@@ -134,32 +98,6 @@ TEST_CASE("IRadioHal mock can be instantiated and used", "[hal]") {
 
     std::vector<Sample> rx_buf(64);
     REQUIRE(radio->receive(rx_buf) == 0);
-}
-
-TEST_CASE("ICryptoHal mock can be instantiated and used", "[hal]") {
-    std::unique_ptr<ICryptoHal> crypto = std::make_unique<MockCryptoHal>();
-
-    std::vector<uint8_t> key{0x01, 0x02, 0x03, 0x04};
-    std::vector<uint8_t> data{0xAA, 0xBB, 0xCC};
-
-    auto encrypted = crypto->encrypt(key, data);
-    REQUIRE(encrypted.has_value());
-    REQUIRE(encrypted->size() == data.size());
-
-    auto decrypted = crypto->decrypt(key, *encrypted);
-    REQUIRE(decrypted.has_value());
-    REQUIRE(*decrypted == data);
-
-    auto wrapped = crypto->wrap_key(key, data);
-    REQUIRE(wrapped.has_value());
-
-    auto unwrapped = crypto->unwrap_key(key, *wrapped);
-    REQUIRE(unwrapped.has_value());
-
-    auto signature = crypto->sign(key, data);
-    REQUIRE(signature.has_value());
-
-    REQUIRE(crypto->verify(key, data, *signature));
 }
 
 TEST_CASE("IGpsHal mock can be instantiated and used", "[hal]") {

@@ -11,10 +11,8 @@
 
 #include "network/NetJoin.h"
 #include "network/PeerDiscovery.h"
-#include "security/SoftCryptoHal.h"
 
 using namespace cirradio::network;
-using namespace cirradio::security;
 
 namespace {
 
@@ -72,10 +70,8 @@ TEST_CASE("Net join: challenge-response authentication succeeds", "[network]") {
     EcKeyPair responder_keys;
     EcKeyPair joiner_keys;
 
-    auto crypto = std::make_shared<SoftCryptoHal>();
-
-    NetJoin responder(1, crypto, responder_keys.private_der, responder_keys.public_der);
-    NetJoin joiner(2, crypto, joiner_keys.private_der, joiner_keys.public_der);
+    NetJoin responder(1, responder_keys.private_der, responder_keys.public_der);
+    NetJoin joiner(2, joiner_keys.private_der, joiner_keys.public_der);
 
     // Responder trusts the joiner
     responder.add_trusted_node(2, joiner_keys.public_der);
@@ -111,10 +107,8 @@ TEST_CASE("Net join: rejects unknown node", "[network]") {
     EcKeyPair responder_keys;
     EcKeyPair joiner_keys;
 
-    auto crypto = std::make_shared<SoftCryptoHal>();
-
-    NetJoin responder(1, crypto, responder_keys.private_der, responder_keys.public_der);
-    NetJoin joiner(2, crypto, joiner_keys.private_der, joiner_keys.public_der);
+    NetJoin responder(1, responder_keys.private_der, responder_keys.public_der);
+    NetJoin joiner(2, joiner_keys.private_der, joiner_keys.public_der);
 
     // Responder does NOT add joiner's key to trusted list
 
@@ -133,10 +127,8 @@ TEST_CASE("Net join: rejects tampered signature", "[network]") {
     EcKeyPair responder_keys;
     EcKeyPair joiner_keys;
 
-    auto crypto = std::make_shared<SoftCryptoHal>();
-
-    NetJoin responder(1, crypto, responder_keys.private_der, responder_keys.public_der);
-    NetJoin joiner(2, crypto, joiner_keys.private_der, joiner_keys.public_der);
+    NetJoin responder(1, responder_keys.private_der, responder_keys.public_der);
+    NetJoin joiner(2, joiner_keys.private_der, joiner_keys.public_der);
 
     responder.add_trusted_node(2, joiner_keys.public_der);
 

@@ -1,6 +1,5 @@
 #pragma once
 #include "Messages.h"
-#include "hal/ICryptoHal.h"
 #include <map>
 #include <memory>
 #include <vector>
@@ -12,11 +11,9 @@ namespace cirradio::network {
 class NetJoin {
 public:
     // node_id: our node ID
-    // crypto: crypto HAL for signing/verifying
     // identity_private_key: our DER-encoded EC P-384 private key
     // identity_public_key: our DER-encoded EC P-384 public key
     NetJoin(uint32_t node_id,
-            std::shared_ptr<hal::ICryptoHal> crypto,
             std::vector<uint8_t> identity_private_key,
             std::vector<uint8_t> identity_public_key);
 
@@ -40,7 +37,6 @@ public:
 
 private:
     uint32_t node_id_;
-    std::shared_ptr<hal::ICryptoHal> crypto_;
     std::vector<uint8_t> private_key_;
     std::vector<uint8_t> public_key_;
     std::map<uint32_t, std::vector<uint8_t>> trusted_keys_;  // node_id -> public_key

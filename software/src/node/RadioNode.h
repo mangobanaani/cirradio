@@ -2,8 +2,7 @@
 #include "hal/SimChannel.h"
 #include "hal/SimRadioHal.h"
 #include "hal/Types.h"
-#include "security/CryptoEngine.h"
-#include "security/SoftCryptoHal.h"
+#include "security/SoftHsm.h"
 #include "security/KeyManager.h"
 #include "fhss/HopSequencer.h"
 #include "tdma/SlotScheduler.h"
@@ -106,8 +105,7 @@ private:
     // Subsystems (owned)
     std::shared_ptr<hal::SimChannel> channel_;
     std::unique_ptr<hal::SimRadioHal> radio_;
-    std::unique_ptr<security::CryptoEngine> crypto_engine_;
-    std::shared_ptr<security::SoftCryptoHal> soft_crypto_;
+    std::unique_ptr<security::SoftHsm> hsm_;
     std::unique_ptr<security::KeyManager> key_mgr_;
     std::unique_ptr<fhss::HopSequencer> hop_seq_;
     std::unique_ptr<tdma::SlotScheduler> scheduler_;
