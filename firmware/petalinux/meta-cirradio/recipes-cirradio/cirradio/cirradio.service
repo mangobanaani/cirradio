@@ -1,0 +1,17 @@
+[Unit]
+Description=CIRRADIO Tactical SDR
+After=gpsd.service
+Requires=gpsd.service
+
+[Service]
+Type=simple
+ExecStartPre=/usr/bin/fpgautil -b /lib/firmware/cirradio.bit
+ExecStart=/usr/bin/cirradio
+StandardInput=tty
+TTYPath=/dev/ttyPS0
+TTYReset=yes
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
