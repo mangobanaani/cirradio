@@ -4,8 +4,7 @@ pkg_check_modules(CODEC2 REQUIRED codec2)
 add_library(cirradio_lib STATIC
     hal/SimChannel.cpp
     hal/SimRadioHal.cpp
-    security/CryptoEngine.cpp
-    security/SoftCryptoHal.cpp
+    security/EcSign.cpp
     security/KeyManager.cpp
     security/Pkcs11Hsm.cpp
     security/SoftHsm.cpp

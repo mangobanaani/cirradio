@@ -1,38 +1,45 @@
+// software/src/security/CryptoEngine.h
 #pragma once
+#include "security/IHsmEngine.h"
 #include <vector>
-#include <cstdint>
 #include <optional>
 #include <span>
+#include <cstdint>
 
 namespace cirradio::security {
 
+// Convenience wrapper that binds an IHsmEngine to a specific key handle.
+// encrypt/decrypt/wrap_key/unwrap_key delegate to the HSM.
 class CryptoEngine {
 public:
-    // Encrypt plaintext with AES-256-GCM. Returns IV + ciphertext + tag.
+    CryptoEngine(IHsmEngine& hsm, CkHandle kh) : hsm_(hsm), kh_(kh) {}
+
+    // AES-256-GCM encrypt (IV+ciphertext+tag wire format).
     std::optional<std::vector<uint8_t>> encrypt(
-        std::span<const uint8_t> key,
-        std::span<const uint8_t> plaintext);
+        std::span<const uint8_t> plaintext) {
+        return hsm_.encrypt(kh_, plaintext);
+    }
 
-    // Decrypt AES-256-GCM ciphertext. Input is IV + ciphertext + tag.
-    // Returns nullopt if authentication fails.
+    // AES-256-GCM decrypt. Returns nullopt on auth failure.
     std::optional<std::vector<uint8_t>> decrypt(
-        std::span<const uint8_t> key,
-        std::span<const uint8_t> ciphertext);
+        std::span<const uint8_t> ciphertext) {
+        return hsm_.decrypt(kh_, ciphertext);
+    }
 
-    // Wrap a key under a KEK (uses AES-256-GCM internally)
-    std::optional<std::vector<uint8_t>> wrap_key(
-        std::span<const uint8_t> kek,
-        std::span<const uint8_t> key_to_wrap);
+    // Wrap another key (kh_ acts as KEK).
+    std::optional<std::vector<uint8_t>> wrap_key(CkHandle key_to_wrap) {
+        return hsm_.wrap_key(kh_, key_to_wrap);
+    }
 
-    // Unwrap a key using KEK
-    std::optional<std::vector<uint8_t>> unwrap_key(
-        std::span<const uint8_t> kek,
-        std::span<const uint8_t> wrapped_key);
+    // Unwrap bytes (kh_ acts as KEK). Returns handle to new key.
+    std::optional<HsmKeyHandle> unwrap_key(
+        std::span<const uint8_t> wrapped) {
+        return hsm_.unwrap_key(kh_, wrapped);
+    }
 
 private:
-    static constexpr size_t kKeySize = 32;   // AES-256
-    static constexpr size_t kIvSize = 12;    // GCM recommended IV
-    static constexpr size_t kTagSize = 16;   // GCM tag
+    IHsmEngine& hsm_;
+    CkHandle    kh_;
 };
 
 }  // namespace cirradio::security
