@@ -155,7 +155,7 @@ std::optional<HsmKeyHandle> SoftHsm::import_raw(
         {CKA_KEY_TYPE,   &key_type,  sizeof(key_type)},
         {CKA_VALUE,      key_data,   key_len},
         {CKA_TOKEN,      &ck_false,  sizeof(ck_false)},
-        {CKA_SENSITIVE,  &ck_true,   sizeof(ck_true)},
+        {CKA_SENSITIVE,  &ck_false,  sizeof(ck_false)},
         {CKA_EXTRACTABLE,&ck_true,   sizeof(ck_true)},
         {CKA_ENCRYPT,    &ck_true,   sizeof(ck_true)},
         {CKA_DECRYPT,    &ck_true,   sizeof(ck_true)},

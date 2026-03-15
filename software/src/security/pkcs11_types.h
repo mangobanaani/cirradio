@@ -19,7 +19,7 @@ typedef CK_ULONG        CK_MECHANISM_TYPE;
 typedef CK_ULONG        CK_OBJECT_CLASS;
 typedef CK_ULONG        CK_KEY_TYPE;
 typedef CK_ULONG        CK_RV;
-typedef CK_ULONG        CK_BBOOL;
+typedef unsigned char   CK_BBOOL;
 typedef CK_ULONG        CK_USER_TYPE;
 
 struct CK_VERSION { CK_BYTE major; CK_BYTE minor; };
@@ -142,7 +142,7 @@ static constexpr CK_MECHANISM_TYPE CKM_AES_GCM      = 0x00001087UL;
 static constexpr CK_MECHANISM_TYPE CKM_AES_KEY_WRAP = 0x00002109UL;
 
 // Object classes
-static constexpr CK_OBJECT_CLASS CKO_SECRET_KEY = 0x00000003UL;
+static constexpr CK_OBJECT_CLASS CKO_SECRET_KEY = 0x00000004UL;
 
 // Key types
 static constexpr CK_KEY_TYPE CKK_AES = 0x0000001FUL;

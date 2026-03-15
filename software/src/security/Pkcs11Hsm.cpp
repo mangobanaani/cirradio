@@ -66,7 +66,6 @@ HsmKeyHandle Pkcs11Hsm::generate_key(KeyType /*type*/, const KeyLabel& /*label*/
     CK_BBOOL ck_true          = CK_TRUE;
     CK_BBOOL ck_false         = CK_FALSE;
     CK_ATTRIBUTE templ[] = {
-        {CKA_CLASS,     &obj_class, sizeof(obj_class)},
         {CKA_KEY_TYPE,  &key_type,  sizeof(key_type)},
         {CKA_VALUE_LEN, &key_len,   sizeof(key_len)},
         {CKA_TOKEN,     &ck_false,  sizeof(ck_false)},  // session object
@@ -78,7 +77,7 @@ HsmKeyHandle Pkcs11Hsm::generate_key(KeyType /*type*/, const KeyLabel& /*label*/
         {CKA_UNWRAP,    &ck_true,   sizeof(ck_true)},
     };
     CK_OBJECT_HANDLE kh = CK_INVALID_HANDLE;
-    CK_RV rv = ck_generate_key(&mech, templ, 10, &kh);
+    CK_RV rv = ck_generate_key(&mech, templ, 9, &kh);
     if (rv != CKR_OK)
         throw std::runtime_error("C_GenerateKey rv=" + std::to_string(rv));
     return HsmKeyHandle(*this, static_cast<CkHandle>(kh));
@@ -98,10 +97,7 @@ std::optional<std::vector<uint8_t>> Pkcs11Hsm::encrypt(
     if (rv != CKR_OK) return std::nullopt;
 
     // First call: get output size (plaintext_len + tag_len)
-    CK_ULONG out_len = 0;
-    rv = ck_encrypt(nullptr, 0, nullptr, &out_len);
-    // Some implementations return error on null input; compute size manually
-    out_len = static_cast<CK_ULONG>(plaintext.size() + kTagLen);
+    CK_ULONG out_len = static_cast<CK_ULONG>(plaintext.size() + kTagLen);
 
     std::vector<uint8_t> ct(out_len);
     rv = ck_encrypt(
@@ -180,7 +176,6 @@ std::optional<HsmKeyHandle> Pkcs11Hsm::unwrap_key(
     CK_ATTRIBUTE templ[] = {
         {CKA_CLASS,      &obj_class, sizeof(obj_class)},
         {CKA_KEY_TYPE,   &key_type,  sizeof(key_type)},
-        {CKA_VALUE_LEN,  &key_len,   sizeof(key_len)},
         {CKA_TOKEN,      &ck_false,  sizeof(ck_false)},
         {CKA_SENSITIVE,  &ck_true,   sizeof(ck_true)},
         {CKA_EXTRACTABLE,&ck_true,   sizeof(ck_true)},
@@ -194,7 +189,7 @@ std::optional<HsmKeyHandle> Pkcs11Hsm::unwrap_key(
         static_cast<CK_OBJECT_HANDLE>(wrapping_key),
         const_cast<CK_BYTE_PTR>(wrapped.data()),
         static_cast<CK_ULONG>(wrapped.size()),
-        templ, 10, &new_key);
+        templ, 9, &new_key);
     if (rv != CKR_OK) return std::nullopt;
     return HsmKeyHandle(*this, static_cast<CkHandle>(new_key));
 }
