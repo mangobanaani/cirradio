@@ -49,9 +49,11 @@ for name, svh_val in svh.items():
     else:
         errors.append(f"MISSING in hpp: {name}")
 
+HPP_ONLY_ALLOWED = {"PAGE_SIZE"}
 for name in hpp:
     if name not in svh and not name.startswith("STATUS_HOP") \
-            and not name.startswith("STATUS_GPS"):
+            and not name.startswith("STATUS_GPS") \
+            and name not in HPP_ONLY_ALLOWED:
         errors.append(f"EXTRA in hpp (not in svh): {name}")
 
 if errors:
