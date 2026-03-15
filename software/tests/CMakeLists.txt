@@ -15,10 +15,15 @@ add_executable(cirradio_tests
     test_integration_multinode.cpp
     test_integration_voice.cpp
     test_pkcs11_hsm.cpp
+    test_multinode_stress.cpp
+    test_voice_quality.cpp
 )
 target_link_libraries(cirradio_tests PRIVATE
     cirradio_lib
     Catch2::Catch2WithMain
 )
+if(PESQ_BINARY)
+    target_compile_definitions(cirradio_tests PRIVATE PESQ_BINARY="${PESQ_BINARY}")
+endif()
 include(Catch)
 catch_discover_tests(cirradio_tests)

@@ -19,8 +19,21 @@ void SimChannel::unregister_radio(uint32_t radio_id) {
     rx_buffers_.erase(radio_id);
 }
 
+void SimChannel::set_partition_active(bool active) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    partition_active_ = active;
+    transmit_count_ = 0;
+}
+
 void SimChannel::transmit(uint32_t sender_id, Frequency freq, const std::vector<Sample>& samples) {
     std::lock_guard<std::mutex> lock(mutex_);
+    // When partition is active, drop every other frame (toggle on transmit count).
+    if (partition_active_) {
+        ++transmit_count_;
+        if (transmit_count_ % 2 == 0) {
+            return;  // drop this frame
+        }
+    }
     for (uint32_t radio_id : registered_radios_) {
         if (radio_id == sender_id) {
             continue;
