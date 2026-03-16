@@ -124,10 +124,10 @@ set_property -dict [list \
 ] [get_ips axi_vip_mst]
 set_property used_in_synthesis false [get_files axi_vip_mst.xci]
 
-# TODO (Task 6, fhss_engine): Add Xilinx Security AES-256 IP here.
-# Requires a Vivado Encryption license (not included in WebPACK/Standard).
-# Verify license availability before attempting fhss_engine tasks.
-# If unlicensed, substitute an open-source AES-256-ECB core (e.g. secworks/aes).
+# NOTE: Xilinx Security AES-256 IP is not instantiated here.
+# It requires a Vivado Encryption license (not included in WebPACK/Standard).
+# The FHSS engine uses an open-source AES-256-ECB RTL core (fhss_engine.sv)
+# which does not require a license and is simulation-equivalent.
 
 # Generate all IP output products
 generate_target all [get_ips]

@@ -33,7 +33,7 @@ private:
     CommandResult handle_net(const std::vector<std::string>& args);
     CommandResult handle_crypto(const std::vector<std::string>& args);
 
-    // State (stub values for standalone operation; wired to subsystems in Task 13)
+    // State (wired to subsystems via RadioNode constructor injection)
     uint32_t node_id_ = 1;
     uint64_t freq_hz_ = 300000000;
     int power_dbm_ = 10;
