@@ -36,5 +36,17 @@ target_link_libraries(cirradio_lib PUBLIC
 )
 target_link_directories(cirradio_lib PUBLIC ${CODEC2_LIBRARY_DIRS})
 
+# SoftHSM2 — cross-platform PKCS#11 test shim
+find_library(SOFTHSM2_LIB softhsm2
+    PATHS /usr/lib/softhsm
+          /usr/lib/x86_64-linux-gnu/softhsm
+          /opt/homebrew/lib/softhsm
+    NO_DEFAULT_PATH)
+if(NOT SOFTHSM2_LIB)
+    message(FATAL_ERROR "SoftHSM2 library not found. Install softhsm2 (apt/brew).")
+endif()
+target_compile_definitions(cirradio_lib PUBLIC
+    SOFTHSM2_LIB_PATH="${SOFTHSM2_LIB}")
+
 add_executable(cirradio main.cpp)
 target_link_libraries(cirradio PRIVATE cirradio_lib)

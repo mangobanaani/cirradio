@@ -30,8 +30,7 @@ static SharedLib& init_shared_lib() {
     SharedLib& sl = SharedLib::instance();
     if (sl.fn) return sl;  // already initialized
 
-    static constexpr const char* kLibPath =
-        "/opt/homebrew/lib/softhsm/libsofthsm2.so";
+    static constexpr const char* kLibPath = SOFTHSM2_LIB_PATH;
     static constexpr const char* kPin = "1234";
 
     // 1. Create temp directory
