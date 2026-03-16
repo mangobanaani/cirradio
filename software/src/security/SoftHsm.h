@@ -2,6 +2,8 @@
 #pragma once
 #include "security/Pkcs11Hsm.h"
 #include <string>
+#include <unordered_map>
+#include <cstdint>
 
 namespace cirradio::security {
 
@@ -39,6 +41,23 @@ public:
     // Override to unwrap into non-sensitive (extractable) keys for test use.
     std::optional<HsmKeyHandle> unwrap_key(
         CkHandle wrapping_key, std::span<const uint8_t> wrapped) override;
+
+    // Store DER-encoded EC P-384 private key in memory; returns opaque handle.
+    CkHandle import_ec_key_der(std::span<const uint8_t> der_priv) override;
+
+    // ECIES decrypt using stored EC identity key (pure OpenSSL, no PKCS#11).
+    std::optional<std::vector<uint8_t>> ecies_decrypt(
+        CkHandle ik_handle, std::span<const uint8_t> payload) override;
+
+    // Idempotent teardown: clear EC keys, close PKCS#11 session.
+    void shutdown() override;
+
+private:
+    // EC identity key store: handle → DER-encoded private key bytes
+    // Handle space starts at 0xEC000000 to avoid collision with PKCS#11 handles.
+    std::unordered_map<CkHandle, std::vector<uint8_t>> ec_keys_;
+    CkHandle next_ec_handle_ = 0xEC000000ULL;
+    bool soft_finalized_ = false;
 };
 
 }  // namespace cirradio::security

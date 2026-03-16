@@ -8,6 +8,11 @@
 #include <cstdlib>
 #include <unistd.h>
 #include <mutex>
+#include <openssl/evp.h>
+#include <openssl/ec.h>
+#include <openssl/kdf.h>
+#include <openssl/params.h>
+#include <openssl/crypto.h>
 
 namespace cirradio::security {
 
@@ -146,17 +151,23 @@ SoftHsm::SoftHsm(CtorArgs&& a)
     : Pkcs11Hsm(a.lib, a.fn, a.session, a.slot)
 {}
 
-SoftHsm::~SoftHsm() {
-    // Close our session only. Do NOT call C_Finalize or dlclose —
-    // SoftHSM2 cannot be safely re-initialized within the same process.
+void SoftHsm::shutdown() {
+    if (soft_finalized_) return;
+    soft_finalized_ = true;
+    ec_keys_.clear();
+    // Close PKCS#11 session (idempotent)
     if (fn_ && session_) {
         ck_logout(session_);
         ck_close_session(session_);
+        session_ = 0;
     }
-    // Prevent base class from calling C_Finalize/dlclose.
-    session_ = 0;
-    fn_      = nullptr;
-    lib_     = nullptr;
+}
+
+SoftHsm::~SoftHsm() {
+    shutdown();
+    // Prevent base class destructor from acting on already-closed session.
+    fn_  = nullptr;
+    lib_ = nullptr;
 }
 
 // ── generate_key: non-sensitive session key for test use ─────────────────────
@@ -258,6 +269,107 @@ std::optional<HsmKeyHandle> SoftHsm::import_raw(
     CK_RV rv = ck_create_object(templ, 10, &obj);
     if (rv != CKR_OK) return std::nullopt;
     return HsmKeyHandle(*this, static_cast<CkHandle>(obj));
+}
+
+// ── import_ec_key_der: store DER private key in memory ───────────────────────
+CkHandle SoftHsm::import_ec_key_der(std::span<const uint8_t> der_priv) {
+    std::vector<uint8_t> key_bytes(der_priv.begin(), der_priv.end());
+    CkHandle h = next_ec_handle_++;
+    ec_keys_[h] = std::move(key_bytes);
+    return h;
+}
+
+// ── ecies_decrypt: ECDH P-384 + HKDF-SHA-384 + AES-256-GCM ─────────────────
+std::optional<std::vector<uint8_t>> SoftHsm::ecies_decrypt(
+    CkHandle ik_handle, std::span<const uint8_t> payload)
+{
+    // Payload: ephemeral_pub(97) | IV(12) | ciphertext | GCM_tag(16)
+    constexpr size_t kPubLen = 97;  // P-384 uncompressed point
+    constexpr size_t kIvLen  = 12;
+    constexpr size_t kTagLen = 16;
+    if (payload.size() < kPubLen + kIvLen + kTagLen) return std::nullopt;
+
+    auto it = ec_keys_.find(ik_handle);
+    if (it == ec_keys_.end()) return std::nullopt;
+
+    // 1. Load device private key from DER
+    const uint8_t* p = it->second.data();
+    EVP_PKEY* dev_priv = d2i_PrivateKey(EVP_PKEY_EC, nullptr, &p,
+                                        static_cast<long>(it->second.size()));
+    if (!dev_priv) return std::nullopt;
+
+    // 2. Load ephemeral public key from uncompressed point bytes
+    EVP_PKEY* ephem_pub = nullptr;
+    {
+        EC_GROUP* grp = EC_GROUP_new_by_curve_name(NID_secp384r1);
+        EC_POINT* pt  = EC_POINT_new(grp);
+        BN_CTX* ctx   = BN_CTX_new();
+        EC_POINT_oct2point(grp, pt, payload.data(), kPubLen, ctx);
+        EC_KEY* ec_key = EC_KEY_new();
+        EC_KEY_set_group(ec_key, grp);
+        EC_KEY_set_public_key(ec_key, pt);
+        ephem_pub = EVP_PKEY_new();
+        EVP_PKEY_set1_EC_KEY(ephem_pub, ec_key);
+        EC_KEY_free(ec_key);
+        BN_CTX_free(ctx);
+        EC_POINT_free(pt);
+        EC_GROUP_free(grp);
+    }
+    if (!ephem_pub) { EVP_PKEY_free(dev_priv); return std::nullopt; }
+
+    // 3. ECDH: derive shared secret
+    EVP_PKEY_CTX* dh_ctx = EVP_PKEY_CTX_new(dev_priv, nullptr);
+    EVP_PKEY_derive_init(dh_ctx);
+    EVP_PKEY_derive_set_peer(dh_ctx, ephem_pub);
+    size_t secret_len = 0;
+    EVP_PKEY_derive(dh_ctx, nullptr, &secret_len);
+    std::vector<uint8_t> shared(secret_len);
+    EVP_PKEY_derive(dh_ctx, shared.data(), &secret_len);
+    shared.resize(secret_len);
+    EVP_PKEY_CTX_free(dh_ctx);
+    EVP_PKEY_free(ephem_pub);
+    EVP_PKEY_free(dev_priv);
+
+    // 4. HKDF-SHA-384: shared_secret → 32-byte AES key
+    std::vector<uint8_t> aes_key(32);
+    {
+        EVP_PKEY_CTX* hkdf_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr);
+        EVP_PKEY_derive_init(hkdf_ctx);
+        EVP_PKEY_CTX_set_hkdf_md(hkdf_ctx, EVP_sha384());
+        EVP_PKEY_CTX_set1_hkdf_key(hkdf_ctx, shared.data(),
+                                   static_cast<int>(shared.size()));
+        EVP_PKEY_CTX_set1_hkdf_salt(hkdf_ctx, nullptr, 0);
+        static const uint8_t kInfo[] = "cirradio-keyfill";
+        EVP_PKEY_CTX_add1_hkdf_info(hkdf_ctx, kInfo, sizeof(kInfo) - 1);
+        size_t key_len = 32;
+        EVP_PKEY_derive(hkdf_ctx, aes_key.data(), &key_len);
+        EVP_PKEY_CTX_free(hkdf_ctx);
+    }
+    OPENSSL_cleanse(shared.data(), shared.size());
+
+    // 5. AES-256-GCM decrypt
+    auto iv   = payload.subspan(kPubLen, kIvLen);
+    auto body = payload.subspan(kPubLen + kIvLen);  // ciphertext + tag
+    if (body.size() < kTagLen) return std::nullopt;
+    auto ct  = body.subspan(0, body.size() - kTagLen);
+    auto tag = body.subspan(body.size() - kTagLen);
+
+    std::vector<uint8_t> plaintext(ct.size());
+    EVP_CIPHER_CTX* cctx = EVP_CIPHER_CTX_new();
+    EVP_DecryptInit_ex(cctx, EVP_aes_256_gcm(), nullptr, nullptr, nullptr);
+    EVP_CIPHER_CTX_ctrl(cctx, EVP_CTRL_GCM_SET_IVLEN, static_cast<int>(kIvLen), nullptr);
+    EVP_DecryptInit_ex(cctx, nullptr, nullptr, aes_key.data(), iv.data());
+    int out_len = 0;
+    EVP_DecryptUpdate(cctx, plaintext.data(), &out_len,
+                      ct.data(), static_cast<int>(ct.size()));
+    EVP_CIPHER_CTX_ctrl(cctx, EVP_CTRL_GCM_SET_TAG, static_cast<int>(kTagLen),
+                        const_cast<uint8_t*>(tag.data()));
+    int final_ok = EVP_DecryptFinal_ex(cctx, plaintext.data() + out_len, &out_len);
+    EVP_CIPHER_CTX_free(cctx);
+    OPENSSL_cleanse(aes_key.data(), aes_key.size());
+
+    if (final_ok != 1) return std::nullopt;
+    return plaintext;
 }
 
 }  // namespace cirradio::security
