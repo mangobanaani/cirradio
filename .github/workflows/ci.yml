@@ -1,0 +1,39 @@
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install apt dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libboost-dev libssl-dev libspdlog-dev \
+            libcodec2-dev softhsm2 \
+            python3-paramiko python3-serial \
+            cmake ninja-build pkg-config
+
+      - name: Install Catch2 v3 from source
+        run: |
+          git clone --depth 1 --branch v3.5.4 \
+            https://github.com/catchorg/Catch2.git /tmp/catch2
+          cmake -S /tmp/catch2 -B /tmp/catch2/build \
+            -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release
+          sudo cmake --build /tmp/catch2/build --target install -j$(nproc)
+
+      - name: Configure
+        run: cmake -S software -B software/build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build software/build -j$(nproc)
+
+      - name: Test
+        run: ctest --test-dir software/build --output-on-failure
