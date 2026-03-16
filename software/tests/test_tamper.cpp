@@ -17,6 +17,8 @@ public:
     void     set_emcon_ctrl(uint32_t) override {}
     void     write_emcon_unlock() override {}
     void     set_tx_power(int32_t) override {}
+    void     set_interleaver_depth(uint32_t) override {}
+    void     set_hop_rate(uint32_t) override {}
     uint32_t emcon_level() const override { return 0; }
 };
 

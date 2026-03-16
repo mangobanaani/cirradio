@@ -5,6 +5,7 @@
 #include <vector>
 #include "transec/EmconManager.h"
 #include "transec/TransecConfig.h"
+#include "security/IAxiRegs.h"
 
 namespace cirradio::mgmt {
 
@@ -22,6 +23,7 @@ public:
 
     void set_emcon_manager(transec::EmconManager* em) { emcon_mgr_ = em; }
     void set_transec_config(transec::TransecConfig* cfg) { transec_cfg_ = cfg; }
+    void set_axi_regs(security::IAxiRegs* regs) { axi_regs_ = regs; }
 
 private:
     using Handler = std::function<CommandResult(const std::vector<std::string>& args)>;
@@ -49,6 +51,7 @@ private:
 
     transec::EmconManager*  emcon_mgr_   = nullptr;
     transec::TransecConfig* transec_cfg_ = nullptr;
+    security::IAxiRegs*     axi_regs_    = nullptr;
 };
 
 }  // namespace cirradio::mgmt

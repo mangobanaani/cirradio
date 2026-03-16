@@ -18,6 +18,8 @@ public:
     virtual void     set_emcon_ctrl(uint32_t value) = 0;
     virtual void     write_emcon_unlock() = 0;
     virtual void     set_tx_power(int32_t dBm_x100) = 0;
+    virtual void     set_interleaver_depth(uint32_t depth) = 0;
+    virtual void     set_hop_rate(uint32_t cycles_per_hop) = 0;
     virtual uint32_t emcon_level() const = 0;
 };
 
@@ -29,6 +31,8 @@ public:
     void     set_emcon_ctrl(uint32_t) override {}
     void     write_emcon_unlock() override {}
     void     set_tx_power(int32_t) override {}
+    void     set_interleaver_depth(uint32_t) override {}
+    void     set_hop_rate(uint32_t) override {}
     uint32_t emcon_level() const override { return 2; }
 };
 

@@ -56,6 +56,8 @@ struct StubAxiRegs : cirradio::security::IAxiRegs {
     void write_emcon_unlock() override          { unlock_written = true; }
     void set_tx_power(int32_t v) override       { last_tx_power = v; }
     uint32_t emcon_level() const override       { return last_emcon_ctrl & 0x3u; }
+    void set_interleaver_depth(uint32_t) override {}
+    void set_hop_rate(uint32_t) override {}
     void zeroize_fhek() override {}
     void halt_fpga_clocks() override {}
 };

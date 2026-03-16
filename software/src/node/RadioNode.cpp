@@ -68,6 +68,7 @@ RadioNode::RadioNode(uint32_t id, std::shared_ptr<hal::SimChannel> channel)
     // Wire EmconManager and TransecConfig into CLIShell
     cli_->set_emcon_manager(&emcon_mgr_);
     cli_->set_transec_config(&transec_cfg_);
+    cli_->set_axi_regs(&null_axi_);
 
     // Generate EC P-384 identity key pair for NetJoin
     generate_identity_keys();
