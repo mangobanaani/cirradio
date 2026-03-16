@@ -50,3 +50,28 @@ localparam REG_STATUS_RESET    = 32'h0000_0002; // GPS holdover at reset (no loc
 localparam REG_RSSI_RESET      = 32'hFFFF_8300; // -32000 = -320.00 dBm (invalid)
 localparam REG_TX_POWER_RESET  = 32'h00000000;
 localparam REG_SLOT_BITMAP_RESET = 32'h00000000;
+
+// --- TRANSEC control registers (0x100–0x114) ---
+// Placed above REG_ERR_BASE ceiling (0x0D8) to avoid overlap.
+
+// Hop period in PL clock cycles per hop. PS writes: 100_000_000 / hops_per_sec.
+// Default 1_000_000 = 100 hops/sec at 100 MHz. Ignored when GPS locked.
+localparam REG_HOP_RATE          = 12'h100; // stores cycles-per-hop
+
+// Active blacklist entries written by PS. Range 0–20.
+localparam REG_BLACKLIST_SIZE    = 12'h104;
+
+// FEC block interleaver depth N (rows). Range 1–32. Default 10.
+localparam REG_INTERLEAVER_DEPTH = 12'h108;
+
+// PA ramp attenuation step size in dBm×100 per cycle. PS pre-computes.
+// Default 4 = 40 dBm/1000 cycles (linear ramp from -40 dBm to 0 in 1000 cycles).
+localparam REG_PA_RAMP_STEP      = 12'h10C;
+
+// EMCON control: [1:0] = level (0/1/2), [2] = lock bit.
+// Reset to 2 (normal ops). Lock bit prevents locked downgrade.
+localparam REG_EMCON_CTRL        = 12'h110;
+
+// EMCON unlock token. Write 0xA5C3_3C5A to allow one locked downgrade.
+// Write-only; reads return 0.
+localparam REG_EMCON_UNLOCK      = 12'h114;
