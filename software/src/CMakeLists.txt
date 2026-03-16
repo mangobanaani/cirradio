@@ -45,7 +45,7 @@ find_library(SOFTHSM2_LIB softhsm2
 if(NOT SOFTHSM2_LIB)
     message(FATAL_ERROR "SoftHSM2 library not found. Install softhsm2 (apt/brew).")
 endif()
-target_compile_definitions(cirradio_lib PUBLIC
+target_compile_definitions(cirradio_lib PRIVATE
     SOFTHSM2_LIB_PATH="${SOFTHSM2_LIB}")
 
 add_executable(cirradio main.cpp)
