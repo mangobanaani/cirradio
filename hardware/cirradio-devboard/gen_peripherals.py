@@ -1122,6 +1122,34 @@ def build_microsd(base_x, base_y):
     wire(hl_x - 5 - 3.81, uy - 10.16, hl_x - 12, uy - 10.16)
 
 
+
+def generate_tamper_section(base_x=30, base_y=500):
+    """Tamper detection: mesh pull-down, lid switch pull-down, XADC alert label."""
+    text_note('Tamper Detection (MIO0/MIO1/MIO2)', base_x, base_y - 5, size=2.0)
+
+    # R_MESH: 10k pull-down on GPIO_TAMPER_MESH (MIO0)
+    mesh_rx = base_x + 10
+    mesh_ry = base_y + 10
+    resistor('10k', mesh_rx, mesh_ry)
+    wire(mesh_rx, mesh_ry - 2.54, mesh_rx, mesh_ry - 6)
+    global_label('GPIO_TAMPER_MESH', mesh_rx, mesh_ry - 6, shape='input')
+    wire(mesh_rx, mesh_ry + 2.54, mesh_rx, mesh_ry + 6)
+    power_symbol('GND', mesh_rx, mesh_ry + 6)
+
+    # R_LID: 10k pull-down on GPIO_TAMPER_LID (MIO1)
+    lid_rx = base_x + 40
+    lid_ry = base_y + 10
+    resistor('10k', lid_rx, lid_ry)
+    wire(lid_rx, lid_ry - 2.54, lid_rx, lid_ry - 6)
+    global_label('GPIO_TAMPER_LID', lid_rx, lid_ry - 6, shape='input')
+    wire(lid_rx, lid_ry + 2.54, lid_rx, lid_ry + 6)
+    power_symbol('GND', lid_rx, lid_ry + 6)
+
+    # XADC alert net label (MIO2) — combinational PL output, no pull resistor needed
+    alert_x = base_x + 70
+    alert_y = base_y + 10
+    global_label('GPIO_ENV_ALERT', alert_x, alert_y, shape='output')
+
 def main():
     # Header
     emit('(kicad_sch')
@@ -1178,6 +1206,11 @@ def main():
     # SECTION 7: Micro-SD Card Slot (bottom-right)
     # ================================================================
     build_microsd(30, 400)
+
+    # ================================================================
+    # SECTION 8: Tamper Detection (bottom)
+    # ================================================================
+    generate_tamper_section(30, 500)
 
     # ================================================================
     # Close schematic
