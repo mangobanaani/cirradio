@@ -14,7 +14,7 @@ CIRRADIO is a tactical UHF frequency-hopping spread-spectrum (FHSS) mesh radio
 designed to NSA/MIL-STD-inspired requirements. It covers the 225–512 MHz
 military UHF band with 287 hop channels, AES-256 frequency-hop sequencing,
 TDMA slot MAC, and a PKCS#11-abstracted HSM crypto layer. The target hardware
-is a custom Zynq-7045 + AD9361 board designed in Phase 2; the full software
+is a custom Zynq-7045 + AD9361 board; the full software
 stack runs and passes tests today on any Linux or macOS machine without hardware.
 
 ---
@@ -52,7 +52,7 @@ RF Front-End  (LNA · PA · bandpass filter · T/R switch)
 
 | Layer               | Technology                          | Purpose                                    | Status          |
 |---------------------|-------------------------------------|--------------------------------------------|-----------------|
-| RF Front-End        | Custom KiCad board (Phase 2)        | LNA, PA, bandpass filter, T/R switch       | Board designed  |
+| RF Front-End        | Custom KiCad board (Zynq-7045)      | LNA, PA, bandpass filter, T/R switch       | Board designed  |
 | RF Transceiver      | AD9361                              | 70 MHz–6 GHz direct-conversion SDR         | RTL complete    |
 | FPGA DSP            | SystemVerilog, Zynq-7045 PL         | Channelizer, modem, FHSS engine, TDMA MAC  | XSim verified   |
 | Embedded Linux      | PetaLinux 2024.2 / Yocto            | BSP, device tree, Yocto app layer          | Config complete |
