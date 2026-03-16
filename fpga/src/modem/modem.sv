@@ -50,8 +50,8 @@ module modem (
     logic [6:0] enc_shift = '0;
     logic       enc_bit_in;
     logic       enc_out0, enc_out1;
-    assign enc_out0 = enc_shift[0]^enc_shift[2]^enc_shift[3]^enc_shift[5]^enc_shift[6];
-    assign enc_out1 = enc_shift[0]^enc_shift[1]^enc_shift[2]^enc_shift[3]^enc_shift[6];
+    assign enc_out0 = enc_shift[0]^enc_shift[1]^enc_shift[3]^enc_shift[4]^enc_shift[6];
+    assign enc_out1 = enc_shift[0]^enc_shift[3]^enc_shift[4]^enc_shift[5]^enc_shift[6];
 
     // TX bit serializer
     logic [7:0] tx_byte_r;
