@@ -9,10 +9,19 @@ All scripts support `--dry-run` for local verification without hardware.
 pip install -r requirements.txt
 ```
 
-`paramiko` is required for SSH connectivity. `pyserial` is used for
-serial console access (not yet implemented in these scripts).
+`paramiko` is required for SSH connectivity. `pyserial` is used by
+`serial_console.py` for UART-based boot verification.
 
 ## Scripts
+
+### serial_console.py
+Connects to the board UART and waits for U-Boot prompt and Linux login prompt,
+verifying the board booted correctly before SSH-based tests start.
+
+```
+python3 serial_console.py --port /dev/ttyUSB0 --baud 115200
+python3 serial_console.py --dry-run
+```
 
 ### board_ssh.py
 Shared SSH helpers used by all test scripts. Provides `BoardSSH` (paramiko
@@ -55,7 +64,12 @@ python3 fhss_onair.py --dry-run
 ```
 
 ### run_all.py
-Runs all scripts in sequence and emits TAP-format output.
+Runs all scripts in sequence and emits TAP-format output. Sequence:
+1. `serial_console` - Verify board boot
+2. `flash_fpga` - Program FPGA
+3. `rf_loopback` - Test transceiver
+4. `gps_lock` - Verify timing reference
+5. `fhss_onair` - Test frequency hopping
 
 ```
 python3 run_all.py --host 192.168.1.100 --bitstream cirradio.bit
