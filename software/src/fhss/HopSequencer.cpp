@@ -47,74 +47,50 @@ HopSequencer::HopSequencer(std::span<const uint8_t> fhek,
 }
 
 uint64_t HopSequencer::compute_channel_index(uint8_t slot, uint32_t frame,
+                                              uint8_t hop_index,
                                               uint8_t attempt) const {
-    // Build 16-byte input block:
-    // [slot (1 byte)][padding (3 bytes)][frame (4 bytes LE)][zeros (7 bytes)][attempt (1 byte)]
+    // AES input block (16 bytes):
+    // [slot:1][pad:3][frame_LE:4][hop_index:1][zeros:6][attempt:1]
     uint8_t input[kBlockSize] = {};
     input[0] = slot;
-    // bytes 1-3: padding (already zero)
-    // bytes 4-7: frame number in little-endian
-    std::memcpy(&input[4], &frame, sizeof(frame));
-    // bytes 8-14: zeros (already zero)
-    // byte 15: attempt number (0 for first try, 1+ for blacklist rehash)
-    input[15] = attempt;
+    // bytes 1-3: padding (zero)
+    std::memcpy(&input[4], &frame, sizeof(frame));   // bytes 4-7: frame LE
+    input[8] = hop_index;                            // byte 8: hop_index
+    // bytes 9-14: zeros
+    input[15] = attempt;                             // byte 15: attempt
 
-    // AES-256-ECB encrypt single block
     uint8_t output[kBlockSize] = {};
-
     EvpCipherCtxPtr ctx(EVP_CIPHER_CTX_new());
-    if (!ctx) {
-        throw std::runtime_error("Failed to create EVP_CIPHER_CTX");
-    }
-
+    if (!ctx) throw std::runtime_error("Failed to create EVP_CIPHER_CTX");
     if (EVP_EncryptInit_ex(ctx.get(), EVP_aes_256_ecb(), nullptr,
-                           fhek_.data(), nullptr) != 1) {
+                           fhek_.data(), nullptr) != 1)
         throw std::runtime_error("EVP_EncryptInit_ex failed");
-    }
-
-    // Disable padding since we're encrypting exactly one block
     EVP_CIPHER_CTX_set_padding(ctx.get(), 0);
-
     int out_len = 0;
-    if (EVP_EncryptUpdate(ctx.get(), output, &out_len,
-                          input, kBlockSize) != 1) {
+    if (EVP_EncryptUpdate(ctx.get(), output, &out_len, input, kBlockSize) != 1)
         throw std::runtime_error("EVP_EncryptUpdate failed");
-    }
-
     int final_len = 0;
-    if (EVP_EncryptFinal_ex(ctx.get(), output + out_len, &final_len) != 1) {
+    if (EVP_EncryptFinal_ex(ctx.get(), output + out_len, &final_len) != 1)
         throw std::runtime_error("EVP_EncryptFinal_ex failed");
-    }
-
-    // Take first 8 bytes as uint64_t (little-endian)
     uint64_t raw_value = 0;
     std::memcpy(&raw_value, output, sizeof(raw_value));
-
     return raw_value % num_channels_;
 }
 
-hal::Frequency HopSequencer::get_hop_frequency(uint8_t slot,
-                                                uint32_t frame) const {
-    // First attempt with attempt=0
-    uint64_t channel_idx = compute_channel_index(slot, frame, 0);
+hal::Frequency HopSequencer::get_hop_frequency(uint8_t slot, uint32_t frame,
+                                                uint8_t hop_index) const {
+    uint64_t channel_idx = compute_channel_index(slot, frame, hop_index, 0);
     hal::Frequency freq = min_freq_ + channel_idx * channel_spacing_;
 
-    if (blacklist_.empty()) {
-        return freq;
-    }
+    if (blacklist_.empty()) return freq;
 
-    // Check blacklist and rehash if needed
     for (int attempt = 1; attempt <= kMaxBlacklistAttempts; ++attempt) {
-        if (blacklist_.find(freq) == blacklist_.end()) {
-            return freq;  // Not blacklisted
-        }
-        // Rehash with incremented attempt number
-        channel_idx = compute_channel_index(slot, frame,
+        if (blacklist_.find(freq) == blacklist_.end()) return freq;
+        channel_idx = compute_channel_index(slot, frame, hop_index,
                                             static_cast<uint8_t>(attempt));
         freq = min_freq_ + channel_idx * channel_spacing_;
     }
 
-    // After max attempts, return whatever we have
     return freq;
 }
 

@@ -17,9 +17,12 @@ public:
                  hal::Frequency max_freq,
                  hal::Frequency channel_spacing);
 
-    // Get the hop frequency for a given slot and frame number.
+    // Get the hop frequency for a given slot, frame, and hop_index.
+    // hop_index (0..99): selects the TRANSEC simultaneous channel;
+    //   defaults to 0 for backward compatibility.
     // Deterministic: same inputs always produce same output.
-    hal::Frequency get_hop_frequency(uint8_t slot, uint32_t frame) const;
+    hal::Frequency get_hop_frequency(uint8_t slot, uint32_t frame,
+                                     uint8_t hop_index = 0) const;
 
     // Blacklist a frequency (for anti-jam). Blacklisted freqs are skipped.
     void blacklist_frequency(hal::Frequency freq);
@@ -38,9 +41,10 @@ private:
     uint64_t num_channels_;
     std::set<hal::Frequency> blacklist_;
 
-    // Internal: compute raw channel index from slot+frame using AES
+    // Internal: compute raw channel index from slot+frame+hop_index using AES.
+    // attempt: incremented when blacklist rehashing is needed.
     uint64_t compute_channel_index(uint8_t slot, uint32_t frame,
-                                   uint8_t attempt = 0) const;
+                                   uint8_t hop_index, uint8_t attempt) const;
 };
 
 }  // namespace cirradio::fhss
