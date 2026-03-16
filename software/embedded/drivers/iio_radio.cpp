@@ -1,5 +1,6 @@
 // software/embedded/drivers/iio_radio.cpp
 #include "iio_radio.hpp"
+#include <algorithm>
 #include <stdexcept>
 #include <cstring>
 #include <string>
@@ -70,7 +71,18 @@ bool IioRadio::init_buffers() {
 }
 
 bool IioRadio::configure(const hal::RadioConfig& cfg) { config_ = cfg; return tune(cfg.center_freq); }
-bool IioRadio::set_tx_power(hal::PowerLevel) { return true; }
+
+bool IioRadio::set_tx_power(hal::PowerLevel power_dbm) {
+    // AD9361 TX attenuation: 0–89.75 dBm in 0.25 dB steps, as millidB integer.
+    // IIO attribute "hardwaregain" on TX voltage0 channel, signed dB.
+    auto* ch = iio_device_find_channel(phy_, "voltage0", true); // TX direction
+    if (!ch) return false;
+    // Clamp to AD9361 range: −89.75 to 0 dBm TX gain
+    float clamped = std::clamp(static_cast<float>(power_dbm), -89.75f, 0.0f);
+    std::string val = std::to_string(clamped);
+    return iio_channel_attr_write(ch, "hardwaregain", val.c_str()) >= 0;
+}
+
 bool IioRadio::set_tx_enabled(bool) { return true; }
 hal::RadioConfig IioRadio::current_config() const { return config_; }
 
