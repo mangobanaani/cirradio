@@ -56,6 +56,24 @@ set_property -dict [list \
     CONFIG.Output_Width {24} \
 ] [get_ips fir_lp_rx]
 
+# RRC filter for modem TX (interpolating) and RX (decimating)
+# Separate from fir_lp_rx (used by channelizer) — do not modify fir_lp_rx.
+# alpha=0.35, 8 taps/symbol, 4x oversampling = 32 total taps
+create_ip -name fir_compiler -vendor xilinx.com -library ip \
+          -version 7.2 -module_name fir_rrc
+set_property -dict [list \
+    CONFIG.CoefficientVector {-0.005 -0.008 0.000 0.020 0.052 0.088 0.108 \
+                               0.088 0.020 -0.068 -0.165 -0.233 -0.233 -0.165 \
+                               -0.068 0.108 0.393 0.673 0.862 0.924 0.862 \
+                               0.673 0.393 0.108 -0.068 -0.165 -0.233 -0.233 \
+                               -0.165 -0.068 0.020 0.088} \
+    CONFIG.Filter_Type {Interpolation} \
+    CONFIG.Interpolation_Rate {4} \
+    CONFIG.Number_of_Channels {2} \
+    CONFIG.Output_Rounding_Mode {Convergent_Rounding_to_Even} \
+    CONFIG.Output_Width {16} \
+] [get_ips fir_rrc]
+
 # Viterbi Decoder (rate 1/2, K=7, soft-decision)
 create_ip -name viterbi_v8_0 -vendor xilinx.com -library ip \
           -version 8.0 -module_name viterbi_k7
