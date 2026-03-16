@@ -7,6 +7,8 @@ module fhss_engine (
     input  logic [255:0] fhek_i,
     input  logic [31:0]  blacklist_i [0:19],
     input  logic [31:0]  slot_bitmap_i,
+    input  logic [31:0]  hop_period_i,      // from REG_HOP_RATE: cycles per hop
+    input  logic [5:0]   blacklist_size_i,  // from REG_BLACKLIST_SIZE: active count
     // GPS 1PPS synchronization
     input  logic         pps_i,
     // Frequency query interface
@@ -41,24 +43,21 @@ module fhss_engine (
 
     // GPS holdover detection
     // Missing PPS after GPS_HOLDOVER_CYCLES → assert gps_holdover_o
-    localparam int GPS_HOLDOVER_CYCLES = 15_000_000;
-    logic [24:0] pps_watchdog;
-    logic        pps_prev;
+    localparam int GPS_HOLDOVER_CYCLES = 1_500_000_000;
+    logic [30:0] pps_watchdog;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             pps_watchdog   <= 0;
-            pps_prev       <= 0;
             hop_lock_o     <= 0;
             gps_holdover_o <= 1;
         end else begin
-            pps_prev <= pps_i;
-            // Rising edge of PPS
-            if (pps_i && !pps_prev) begin
+            // Rising edge of PPS handled in hop_timer block (pps_prev shared there)
+            if (pps_i) begin
                 pps_watchdog   <= 0;
                 hop_lock_o     <= 1;
                 gps_holdover_o <= 0;
-            end else if (pps_watchdog < GPS_HOLDOVER_CYCLES[24:0]) begin
+            end else if (pps_watchdog < GPS_HOLDOVER_CYCLES[30:0]) begin
                 pps_watchdog <= pps_watchdog + 1;
             end else begin
                 gps_holdover_o <= 1;
@@ -86,17 +85,57 @@ module fhss_engine (
     logic [31:0] candidate_freq;
     logic        blacklisted;
 
-    // Check if candidate_freq is blacklisted
+    // hop_index register for AES block diversification
+    logic [7:0] hop_index_q;
+
+    // Check if candidate_freq is blacklisted (uses configurable blacklist_size_i)
     always_comb begin
         blacklisted = 1'b0;
         for (int i = 0; i < 20; i++) begin
-            if (blacklist_i[i] != 0 && blacklist_i[i] == candidate_freq)
+            if (i < blacklist_size_i &&
+                blacklist_i[i] != 0 &&
+                blacklist_i[i] == candidate_freq)
                 blacklisted = 1'b1;
         end
     end
 
-    assign aes_block = {slot_reg, 24'h0, frame_reg, 56'h0, attempt_reg};
+    // AES input block: [slot:8][pad:24][frame:32][hop_index:8][zeros:48][attempt:8]
+    assign aes_block = {slot_reg, 24'h0, frame_reg, hop_index_q, 48'h0, attempt_reg};
 
+    // =========================================================================
+    // Hop timer: fires at hop_period_i cycles; GPS PPS resets to slot 0
+    // =========================================================================
+    logic [31:0] hop_timer_q;
+    logic        hop_tick;
+    logic        pps_prev;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            hop_timer_q <= 32'd1_000_000;
+            hop_index_q <= 8'd0;
+            hop_tick    <= 1'b0;
+            pps_prev    <= 1'b0;
+        end else begin
+            hop_tick <= 1'b0;
+            pps_prev <= pps_i;
+            if (pps_i && !pps_prev) begin
+                // GPS PPS rising edge: reset to start of second
+                hop_index_q <= 8'd0;
+                hop_timer_q <= hop_period_i - 1;
+            end else if (hop_timer_q == 0) begin
+                hop_tick    <= 1'b1;
+                hop_timer_q <= hop_period_i - 1;
+                if (hop_index_q < 8'd99)
+                    hop_index_q <= hop_index_q + 1'b1;
+            end else begin
+                hop_timer_q <= hop_timer_q - 1'b1;
+            end
+        end
+    end
+
+    // =========================================================================
+    // FSM
+    // =========================================================================
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state        <= S_IDLE;
@@ -112,12 +151,13 @@ module fhss_engine (
 
             case (state)
                 S_IDLE: begin
-                    // Accept new request when in IDLE
-                    slot_reg    <= slot_req;
-                    frame_reg   <= frame_req;
-                    attempt_reg <= 0;
-                    aes_init    <= 1;   // load key
-                    state       <= S_INIT_KEY;
+                    if (hop_tick) begin
+                        slot_reg    <= slot_req;
+                        frame_reg   <= frame_req;
+                        attempt_reg <= 0;
+                        aes_init    <= 1;
+                        state       <= S_INIT_KEY;
+                    end
                 end
 
                 S_INIT_KEY: begin
@@ -136,10 +176,9 @@ module fhss_engine (
                 end
 
                 S_CHECK_BLACKLIST: begin
-                    // channel_index = ciphertext[63:0] % 287
-                    // 287 channels: 225000..511000 kHz (1 MHz steps)
-                    channel_idx    = cipher_lo % 287;
-                    candidate_freq = 225_000 + channel_idx * 1_000;
+                    // 11480 channels: 225000..511975 kHz at 25 kHz spacing
+                    channel_idx    = cipher_lo % 11480;
+                    candidate_freq = 225_000 + channel_idx * 25;
 
                     if (!blacklisted || attempt_reg >= 9) begin
                         freq_khz_o   <= candidate_freq;
@@ -154,7 +193,7 @@ module fhss_engine (
                 end
 
                 S_DONE: begin
-                    // Hold output; on next cycle return to IDLE for next request
+                    // Hold output; return to IDLE for next hop_tick
                     state <= S_IDLE;
                 end
 

@@ -9,6 +9,7 @@ module modem_tb;
     logic [7:0]  rx_byte; logic rx_valid;
     logic [31:0] tx_iq, rx_iq;
     logic        tx_iq_valid;
+    logic [5:0]  interleaver_depth_i = 6'd8;  // default: 8 rows
 
     modem dut (
         .clk(clk), .rst_n(rst_n),
@@ -16,7 +17,8 @@ module modem_tb;
         .s_axis_tx_tready(tx_ready),
         .m_axis_tx_iq(tx_iq), .m_axis_tx_iq_valid(tx_iq_valid),
         .s_axis_rx_iq(rx_iq), .s_axis_rx_iq_valid(tx_iq_valid),
-        .m_axis_rx_tdata(rx_byte), .m_axis_rx_tvalid(rx_valid)
+        .m_axis_rx_tdata(rx_byte), .m_axis_rx_tvalid(rx_valid),
+        .interleaver_depth_i(interleaver_depth_i)
     );
 
     // Channel impairments:
@@ -91,6 +93,11 @@ module modem_tb;
             bytes_rx++;
         end
     end
+
+    // TODO: interleaver round-trip test
+    // Send N_BYTES with burst errors injected mid-frame, verify BER improvement
+    // versus same test without interleaver (interleaver_depth_i = 1).
+    // $display("TODO: interleaver round-trip BER with burst errors");
 
     initial begin #20_000_000; $error("TIMEOUT"); $fatal(1); end
 endmodule

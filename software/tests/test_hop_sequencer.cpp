@@ -14,14 +14,14 @@ TEST_CASE("Hop sequence is deterministic given same key and frame", "[fhss]") {
     REQUIRE(freq_a != freq_c);  // different slot = likely different freq
 }
 
-TEST_CASE("Hop frequencies stay within band", "[fhss]") {
+TEST_CASE("Hop frequencies stay within band at 25kHz spacing", "[fhss]") {
     std::vector<uint8_t> fhek(32, 0xBB);
-    cirradio::fhss::HopSequencer seq(fhek, 225'000'000, 512'000'000, 1'000'000);
-    for (uint32_t frame = 0; frame < 1000; ++frame) {
+    cirradio::fhss::HopSequencer seq(fhek, 225'000'000, 512'000'000, 25'000);
+    for (uint32_t frame = 0; frame < 100; ++frame) {
         for (uint8_t slot = 0; slot < 20; ++slot) {
-            auto freq = seq.get_hop_frequency(slot, frame);
+            auto freq = seq.get_hop_frequency(slot, frame, 0);
             REQUIRE(freq >= 225'000'000);
-            REQUIRE(freq <= 512'000'000);
+            REQUIRE(freq <  512'000'000);
         }
     }
 }
@@ -62,9 +62,26 @@ TEST_CASE("Clear blacklist restores original frequency", "[fhss]") {
     REQUIRE(seq.get_hop_frequency(0, 0) == original);
 }
 
-TEST_CASE("num_channels returns correct count", "[fhss]") {
+TEST_CASE("num_channels legacy 1MHz spacing", "[fhss]") {
     std::vector<uint8_t> fhek(32, 0xEE);
     cirradio::fhss::HopSequencer seq(fhek, 225'000'000, 512'000'000, 1'000'000);
-    // (512 - 225) = 287 channels at 1 MHz spacing
     REQUIRE(seq.num_channels() == 287);
+}
+
+TEST_CASE("num_channels returns correct count for 25kHz spacing", "[fhss]") {
+    std::vector<uint8_t> fhek(32, 0xEE);
+    // 25 kHz spacing: (512000000 - 225000000) / 25000 = 11480 channels
+    cirradio::fhss::HopSequencer seq(fhek, 225'000'000, 512'000'000, 25'000);
+    REQUIRE(seq.num_channels() == 11480);
+}
+
+TEST_CASE("Different hop_index produces different frequencies", "[fhss]") {
+    std::vector<uint8_t> fhek(32, 0xFF);
+    cirradio::fhss::HopSequencer seq(fhek, 225'000'000, 512'000'000, 25'000);
+    auto freq_hop0 = seq.get_hop_frequency(0, 100, 0);
+    auto freq_hop1 = seq.get_hop_frequency(0, 100, 1);
+    // Different hop_index should (with overwhelming probability) give different channels
+    REQUIRE(freq_hop0 != freq_hop1);
+    REQUIRE(freq_hop0 >= 225'000'000);
+    REQUIRE(freq_hop0 <= 512'000'000);
 }

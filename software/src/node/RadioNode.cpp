@@ -51,7 +51,8 @@ std::vector<uint8_t> samples_to_bytes(const std::vector<hal::Sample>& samples) {
 
 RadioNode::RadioNode(uint32_t id, std::shared_ptr<hal::SimChannel> channel)
     : id_(id)
-    , channel_(std::move(channel)) {
+    , channel_(std::move(channel))
+    , emcon_mgr_(null_axi_, transec_cfg_) {
     // Create subsystems that don't depend on keys
     radio_ = std::make_unique<hal::SimRadioHal>(channel_);
     hsm_ = std::make_unique<security::SoftHsm>();
@@ -64,12 +65,22 @@ RadioNode::RadioNode(uint32_t id, std::shared_ptr<hal::SimChannel> channel)
     audio_hal_ = std::make_unique<voice::SimAudioHal>();
     cli_ = std::make_unique<mgmt::CLIShell>();
 
+    // Wire EmconManager and TransecConfig into CLIShell
+    cli_->set_emcon_manager(&emcon_mgr_);
+    cli_->set_transec_config(&transec_cfg_);
+    cli_->set_axi_regs(&null_axi_);
+
     // Generate EC P-384 identity key pair for NetJoin
     generate_identity_keys();
 
     // Create SecurityManager
     security_mgr_ = std::make_unique<security::SecurityManager>(
         *key_mgr_, *hsm_, null_axi_, ik_handle_);
+
+    // Wire EmconManager into TamperMonitor callback via post-zeroize hook
+    security_mgr_->set_post_zeroize_hook([this]() {
+        emcon_mgr_.force_emcon0();
+    });
 
     // Create NetJoin with identity keys
     net_join_ = std::make_unique<network::NetJoin>(

@@ -9,6 +9,8 @@ module fhss_engine_tb;
     logic [255:0] fhek_i;
     logic [31:0]  blacklist_i [0:19];
     logic [31:0]  slot_bitmap_i;
+    logic [31:0]  hop_period_i      = 32'd1_000_000;  // 100 Hz at 100 MHz
+    logic [5:0]   blacklist_size_i  = 6'd20;
     logic         pps_i = 0;
     logic [4:0]   slot_req;
     logic [31:0]  frame_req;
@@ -49,11 +51,11 @@ module fhss_engine_tb;
         request_freq(1, 0,   freq);
         `CHECK_EQ(freq, TV_SLOT1_FRAME0_FREQ_KHZ,   "slot=1 frame=0 freq");
 
-        // Test 2: Frequency within band (225-512 MHz)
+        // Test 2: Frequency within band (225-512 MHz, 25 kHz channels)
         for (int s = 0; s < 20; s++) begin
             for (int f = 0; f < 10; f++) begin
                 request_freq(s, f, freq);
-                `CHECK(freq >= 225_000 && freq <= 512_000, "freq in band");
+                `CHECK(freq >= 225_000 && freq <= 511_975, "freq in band");
             end
         end
 
@@ -73,6 +75,12 @@ module fhss_engine_tb;
         // Test 5: GPS holdover when PPS stops
         repeat(200) @(posedge clk);
         `CHECK(gps_holdover_o, "gps_holdover when PPS missing");
+
+        // TODO: hop_timer fires at ~100 Hz (hop_period_i = 1_000_000 cycles at 100 MHz)
+        // $display("TODO: verify hop_tick pulses at 100 Hz rate");
+
+        // TODO: GPS PPS rising edge resets hop_index_q to 0
+        // $display("TODO: verify hop_index_q == 0 immediately after PPS rising edge");
 
         $display("fhss_engine_tb: ALL TESTS PASSED"); $finish;
     end

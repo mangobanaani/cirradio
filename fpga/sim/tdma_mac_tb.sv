@@ -7,11 +7,17 @@ module tdma_mac_tb;
 
     logic [31:0] slot_bitmap_i;
     logic [4:0]  current_slot_i;
+    logic [1:0]  emcon_level_i    = 2'b10;
+    logic        emcon_ctrl_wr_i  = 1'b0;
+    logic        emcon_unlock_wr_i = 1'b0;
+    logic [31:0] axi_wdata_i      = 32'd0;
+    logic [31:0] pa_ramp_steps_i  = 32'd100;
     logic        txnrx_o;
     logic        pa_enable_o;
     logic        tr_switch_o;
     logic        preamble_tx_o;
     logic        slot_lock_o;
+    logic [15:0] pa_atten_x100_o;
 
     tdma_mac dut (.*);
 
@@ -55,6 +61,20 @@ module tdma_mac_tb;
         // --- Test 5: No false slot_lock on empty channel ---
         next_slot(5); `WAIT_CYCLES(50);
         `CHECK(!slot_lock_o, "no false slot_lock on noise-free RX");
+
+        // TODO: EMCON level 0 — pa_enable_o must be 0 on all slots
+        // emcon_level_i = 2'b00; emcon_ctrl_wr_i = 1; @(posedge clk); emcon_ctrl_wr_i = 0;
+        // next_slot(0); `WAIT_CYCLES(5);
+        // `CHECK(!pa_enable_o, "EMCON 0: PA inhibited on all slots");
+
+        // TODO: EMCON level 1 — pa_enable_o only on slot 0
+        // emcon_level_i = 2'b01; emcon_ctrl_wr_i = 1; @(posedge clk); emcon_ctrl_wr_i = 0;
+        // next_slot(0); `WAIT_CYCLES(5); `CHECK(pa_enable_o, "EMCON 1: PA on slot 0");
+        // next_slot(1); `WAIT_CYCLES(5); `CHECK(!pa_enable_o, "EMCON 1: PA off slot 1");
+
+        // TODO: EMCON level 2 — normal, pa_enable_o follows tx_slot
+        // emcon_level_i = 2'b10; emcon_ctrl_wr_i = 1; @(posedge clk); emcon_ctrl_wr_i = 0;
+        // next_slot(0); `WAIT_CYCLES(5); `CHECK(pa_enable_o, "EMCON 2: PA on owned slot");
 
         $display("tdma_mac_tb: ALL TESTS PASSED"); $finish;
     end

@@ -25,6 +25,9 @@ void SecurityManager::zeroize_immediate() noexcept {
     if (!zeroized_.compare_exchange_strong(expected, true)) return;
     spdlog::critical("[SECURITY] zeroize_immediate triggered");
     zeroize_engine_.run();
+    if (post_zeroize_hook_) {
+        try { post_zeroize_hook_(); } catch (...) {}
+    }
 }
 
 void SecurityManager::start() {

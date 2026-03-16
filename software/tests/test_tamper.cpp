@@ -14,6 +14,12 @@ public:
     int clock_halt_calls   = 0;
     void zeroize_fhek()     override { ++fhek_zeroize_calls; }
     void halt_fpga_clocks() override { ++clock_halt_calls; }
+    void     set_emcon_ctrl(uint32_t) override {}
+    void     write_emcon_unlock() override {}
+    void     set_tx_power(int32_t) override {}
+    void     set_interleaver_depth(uint32_t) override {}
+    void     set_hop_rate(uint32_t) override {}
+    uint32_t emcon_level() const override { return 0; }
 };
 
 static void init_km(KeyManager& km) {
