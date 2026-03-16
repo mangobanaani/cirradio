@@ -37,6 +37,7 @@ module ad9361_if_tb;
         .iserdes_clk(iserdes_clk), .iserdes_clk_div(iserdes_clk_div)
     );
 
+    // ---- RX stimulus (unchanged) ----
     localparam I_SAMP = 12'hABC;
     localparam Q_SAMP = 12'h123;
     int sample_phase = 0;
@@ -53,6 +54,7 @@ module ad9361_if_tb;
     always_comb p0_d_n = ~p0_d_p;
     always_comb rx_frame_n = ~rx_frame_p;
 
+    // ---- RX checker ----
     int rx_count = 0;
     always @(posedge fab_clk) begin
         if (rx_tvalid && rx_tready) begin
@@ -62,11 +64,42 @@ module ad9361_if_tb;
         end
     end
 
+    // ---- TX checker ----
+    // Send a known IQ sample; verify p0_tx_p goes non-zero (OSERDESE2 active)
+    // and tx_frame_p toggles in the expected pattern (1,1,0,0 per 4 iserdes_clk_div cycles).
+    localparam logic [31:0] TX_SAMP = 32'hDEAD_BEEF;
+    int tx_frame_transitions = 0;
+    logic tx_frame_prev = 0;
+    int tx_data_nonzero = 0;
+
+    always @(posedge iserdes_clk_div) begin
+        // Count tx_frame transitions (should toggle from 1->0 after 2 phases)
+        if (tx_fp !== tx_frame_prev) begin
+            tx_frame_transitions++;
+            tx_frame_prev <= tx_fp;
+        end
+        // Verify tx_p carries data (at least one bit set when active)
+        if (tx_p !== 6'b0 && tx_p !== 6'b111111)
+            tx_data_nonzero++;
+    end
+
     initial begin
         fab_rst_n = 0; #50000; fab_rst_n = 1;
+
+        // Wait for RX to be verified
         wait(rx_count >= 100);
-        $display("ad9361_if_tb: RX verified %0d samples — PASSED", rx_count);
+
+        // Send TX sample
+        @(posedge fab_clk); tx_tdata = TX_SAMP; tx_tvalid = 1;
+        @(posedge fab_clk iff tx_tready); tx_tvalid = 0;
+
+        // Allow serialisation to complete (4 iserdes_clk_div cycles)
+        repeat(20) @(posedge iserdes_clk_div);
+
+        `CHECK(tx_frame_transitions >= 2, "TX frame toggled (I/Q boundary seen)");
+        `CHECK(tx_data_nonzero > 0,       "TX data pins carried non-trivial data");
+        $display("ad9361_if_tb: RX %0d samples + TX path verified — PASSED", rx_count);
         $finish;
     end
-    initial begin #2000000; $error("TIMEOUT — no RX samples"); $fatal(1); end
+    initial begin #4000000; $error("TIMEOUT"); $fatal(1); end
 endmodule

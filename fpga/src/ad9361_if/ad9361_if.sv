@@ -121,10 +121,142 @@ module ad9361_if (
     );
     assign m_axis_rx_tvalid = !fifo_empty;
 
-    // TX path: stub (full TX path via OSERDESE2 after hardware bring-up)
-    assign s_axis_tx_tready = 1'b1;
-    assign tx_frame_p = 1'b0; assign tx_frame_n = 1'b1;
-    assign p0_tx_p    = 6'b0; assign p0_tx_n    = 6'b111111;
-    assign fb_clk_p   = 1'b0; assign fb_clk_n   = 1'b1;
+    // =========================================================================
+    // TX path: fabric clock domain -> DATA_CLK domain -> OSERDESE2 -> OBUFDS
+    // =========================================================================
+    // XPM FIFO: fabric clock domain -> DATA_CLK (iserdes_clk_div) domain
+    logic [31:0] tx_fifo_dout;
+    logic        tx_fifo_empty, tx_fifo_rd_en;
+    logic        tx_fifo_valid_r;
+
+    xpm_fifo_async #(
+        .FIFO_WRITE_DEPTH(16), .WRITE_DATA_WIDTH(32),
+        .READ_DATA_WIDTH(32),  .READ_MODE("FWFT"),
+        .FIFO_MEMORY_TYPE("BRAM")
+    ) fifo_tx (
+        .wr_clk(fabric_clk),
+        .wr_en(s_axis_tx_tvalid && s_axis_tx_tready),
+        .din(s_axis_tx_tdata),
+        .rd_clk(iserdes_clk_div),
+        .rd_en(tx_fifo_rd_en),
+        .dout(tx_fifo_dout),
+        .empty(tx_fifo_empty),
+        .full(),
+        .rd_data_count(), .wr_data_count(),
+        .prog_empty_thresh('0), .prog_full_thresh('0),
+        .injectsbiterr('0), .injectdbiterr('0),
+        .rst(!fabric_rst_n), .rd_rst_busy(), .wr_rst_busy(),
+        .sbiterr(), .dbiterr()
+    );
+    assign s_axis_tx_tready = 1'b1;  // fabric side always accepts
+
+    // TX serialiser state machine (DATA_CLK domain, iserdes_clk_div)
+    // Each IQ sample (32 bits = 16b I + 16b Q) is sent as:
+    //   Phase 0: I[11:6]  tx_frame=1  (I word, upper 6 bits)
+    //   Phase 1: I[5:0]   tx_frame=1  (I word, lower 6 bits)
+    //   Phase 2: Q[11:6]  tx_frame=0  (Q word, upper 6 bits)
+    //   Phase 3: Q[5:0]   tx_frame=0  (Q word, lower 6 bits)
+    logic [1:0] tx_phase = 0;
+    logic [11:0] tx_i_reg, tx_q_reg;
+    logic [5:0]  tx_data_ser;
+    logic        tx_frame_ser;
+    logic        tx_sample_active = 0;
+
+    assign tx_fifo_rd_en = !tx_fifo_empty && (tx_phase == 2'd0) && !tx_sample_active;
+
+    always_ff @(posedge iserdes_clk_div or negedge fabric_rst_n) begin
+        if (!fabric_rst_n) begin
+            tx_phase         <= '0;
+            tx_i_reg         <= '0; tx_q_reg <= '0;
+            tx_data_ser      <= '0; tx_frame_ser <= '0;
+            tx_sample_active <= '0;
+        end else begin
+            case (tx_phase)
+                2'd0: begin
+                    if (!tx_fifo_empty) begin
+                        tx_i_reg         <= tx_fifo_dout[31:20];  // upper 12 bits = I
+                        tx_q_reg         <= tx_fifo_dout[15:4];   // lower 12 bits = Q
+                        tx_data_ser      <= tx_fifo_dout[31:26];  // I[11:6]
+                        tx_frame_ser     <= 1'b1;
+                        tx_sample_active <= 1'b1;
+                        tx_phase         <= 2'd1;
+                    end
+                end
+                2'd1: begin
+                    tx_data_ser  <= tx_i_reg[5:0];
+                    tx_frame_ser <= 1'b1;
+                    tx_phase     <= 2'd2;
+                end
+                2'd2: begin
+                    tx_data_ser  <= tx_q_reg[11:6];
+                    tx_frame_ser <= 1'b0;
+                    tx_phase     <= 2'd3;
+                end
+                2'd3: begin
+                    tx_data_ser      <= tx_q_reg[5:0];
+                    tx_frame_ser     <= 1'b0;
+                    tx_sample_active <= 1'b0;
+                    tx_phase         <= 2'd0;
+                end
+            endcase
+        end
+    end
+
+    // OSERDESE2: single-rate (SDR) output per iserdes_clk_div tick
+    // AD9361 DDR LVDS: each DATA_CLK edge carries 6 data bits.
+    // We output 6 bits per iserdes_clk_div cycle (SDR at half DATA_CLK rate).
+    genvar t;
+    generate
+        for (t = 0; t < 6; t++) begin : gen_oserdes
+            logic tx_bit_p, tx_bit_n;
+            OSERDESE2 #(
+                .DATA_RATE_OQ("SDR"), .DATA_RATE_TQ("SDR"),
+                .DATA_WIDTH(4), .SERDES_MODE("MASTER"),
+                .TRISTATE_WIDTH(1)
+            ) oserdes_inst (
+                .OQ(tx_bit_p),
+                .D1(tx_data_ser[t]), .D2(1'b0), .D3(1'b0), .D4(1'b0),
+                .D5(1'b0), .D6(1'b0), .D7(1'b0), .D8(1'b0),
+                .T1(1'b0), .T2(1'b0), .T3(1'b0), .T4(1'b0),
+                .TCE(1'b0), .OCE(1'b1),
+                .CLK(iserdes_clk), .CLKDIV(iserdes_clk_div),
+                .RST(!fabric_rst_n),
+                .SHIFTIN1(1'b0), .SHIFTIN2(1'b0),
+                .SHIFTOUT1(), .SHIFTOUT2(),
+                .OFB(), .TFB(), .TQ()
+            );
+            OBUFDS #(.IOSTANDARD("LVDS_25"))
+                obuf_d (.O(p0_tx_p[t]), .OB(p0_tx_n[t]), .I(tx_bit_p));
+        end
+    endgenerate
+
+    // TX_FRAME OSERDESE2 + OBUFDS
+    logic tx_frame_out;
+    OSERDESE2 #(
+        .DATA_RATE_OQ("SDR"), .DATA_RATE_TQ("SDR"),
+        .DATA_WIDTH(4), .SERDES_MODE("MASTER"),
+        .TRISTATE_WIDTH(1)
+    ) oserdes_frame (
+        .OQ(tx_frame_out),
+        .D1(tx_frame_ser), .D2(1'b0), .D3(1'b0), .D4(1'b0),
+        .D5(1'b0), .D6(1'b0), .D7(1'b0), .D8(1'b0),
+        .T1(1'b0), .T2(1'b0), .T3(1'b0), .T4(1'b0),
+        .TCE(1'b0), .OCE(1'b1),
+        .CLK(iserdes_clk), .CLKDIV(iserdes_clk_div),
+        .RST(!fabric_rst_n),
+        .SHIFTIN1(1'b0), .SHIFTIN2(1'b0),
+        .SHIFTOUT1(), .SHIFTOUT2(),
+        .OFB(), .TFB(), .TQ()
+    );
+    OBUFDS #(.IOSTANDARD("LVDS_25"))
+        obuf_txf (.O(tx_frame_p), .OB(tx_frame_n), .I(tx_frame_out));
+
+    // FB_CLK: loopback of DATA_CLK to AD9361 for TX timing alignment
+    logic fb_clk_out;
+    ODDR #(.DDR_CLK_EDGE("SAME_EDGE"), .INIT(1'b0))
+        oddr_fb (.Q(fb_clk_out), .C(iserdes_clk_div),
+                 .CE(1'b1), .D1(1'b1), .D2(1'b0), .R(1'b0), .S(1'b0));
+    OBUFDS #(.IOSTANDARD("LVDS_25"))
+        obuf_fb (.O(fb_clk_p), .OB(fb_clk_n), .I(fb_clk_out));
 
 endmodule
