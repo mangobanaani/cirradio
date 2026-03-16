@@ -165,3 +165,35 @@ static constexpr CK_BBOOL CK_FALSE = 0;
 static constexpr CK_OBJECT_HANDLE CK_INVALID_HANDLE = 0;
 
 }  // extern "C"
+
+// ── EC / ECDH additions (needed for import_ec_key_der + ecies_decrypt) ───────
+extern "C" {
+
+// Additional object class
+static constexpr CK_OBJECT_CLASS CKO_PRIVATE_KEY = 0x00000003UL;
+
+// Additional key types
+static constexpr CK_KEY_TYPE CKK_EC             = 0x00000003UL;
+static constexpr CK_KEY_TYPE CKK_GENERIC_SECRET = 0x00000010UL;
+
+// Additional mechanisms
+static constexpr CK_MECHANISM_TYPE CKM_ECDH1_DERIVE = 0x00001050UL;
+
+// ECDH KDF values
+static constexpr CK_ULONG CKD_NULL = 0x00000001UL;
+
+// Additional attribute types
+static constexpr CK_ULONG CKA_SIGN      = 0x00000108UL;
+static constexpr CK_ULONG CKA_DERIVE    = 0x0000010CUL;
+static constexpr CK_ULONG CKA_EC_PARAMS = 0x00000180UL;
+
+// ECDH1 derive parameters (PKCS#11 2.40 §2.3.6)
+struct CK_ECDH1_DERIVE_PARAMS {
+    CK_ULONG    kdf;
+    CK_ULONG    ulSharedDataLen;
+    CK_BYTE_PTR pSharedData;
+    CK_ULONG    ulPublicDataLen;
+    CK_BYTE_PTR pPublicData;
+};
+
+}  // extern "C"

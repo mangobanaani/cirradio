@@ -2,6 +2,9 @@
 #include "security/Pkcs11Hsm.h"
 #include <dlfcn.h>
 #include <openssl/rand.h>
+#include <openssl/evp.h>
+#include <openssl/ec.h>
+#include <openssl/kdf.h>
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 #include <cstring>
@@ -48,13 +51,9 @@ Pkcs11Hsm::Pkcs11Hsm(void* lib, CK_FUNCTION_LIST* fn,
                      CK_SESSION_HANDLE session, CK_SLOT_ID slot) noexcept
     : lib_(lib), fn_(fn), session_(session), slot_id_(slot) {}
 
-Pkcs11Hsm::~Pkcs11Hsm() {
-    if (fn_ && session_) {
-        ck_logout(session_);
-        ck_close_session(session_);
-        ck_finalize(nullptr);
-    }
-    if (lib_) dlclose(lib_);
+Pkcs11Hsm::~Pkcs11Hsm() {\
+    shutdown();\
+    if (lib_) { dlclose(lib_); lib_ = nullptr; }\
 }
 
 // ── IHsmEngine methods ────────────────────────────────────────────────────────
@@ -205,11 +204,137 @@ std::optional<HsmKeyHandle> Pkcs11Hsm::import_raw(
     return std::nullopt;
 }
 
-bool Pkcs11Hsm::destroy_key(CkHandle kh) {
+bool Pkcs11Hsm::destroy_key(CkHandle kh) {\
+    if (finalized_ || !fn_) return false;
     CK_RV rv = ck_destroy_object(static_cast<CK_OBJECT_HANDLE>(kh));
     return rv == CKR_OK;
 }
 
+
+void Pkcs11Hsm::shutdown() {
+    if (finalized_) return;
+    finalized_ = true;
+    if (fn_ && session_) {
+        ck_logout(session_);
+        ck_close_session(session_);
+        session_ = 0;
+    }
+    if (fn_) {
+        ck_finalize(nullptr);
+        fn_ = nullptr;
+    }
+}
+
+CkHandle Pkcs11Hsm::import_ec_key_der(std::span<const uint8_t> der_priv) {
+    if (finalized_) return 0;
+    const uint8_t* p = der_priv.data();
+    EVP_PKEY* pkey = d2i_PrivateKey(EVP_PKEY_EC, nullptr, &p,
+                                    static_cast<long>(der_priv.size()));
+    if (!pkey) return 0;
+    const EC_KEY* ec = EVP_PKEY_get0_EC_KEY(pkey);
+    const BIGNUM* priv_bn = EC_KEY_get0_private_key(ec);
+    std::vector<uint8_t> priv_bytes(48, 0);
+    BN_bn2binpad(priv_bn, priv_bytes.data(), 48);
+    EVP_PKEY_free(pkey);
+    static const uint8_t kP384Oid[] = {
+        0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22
+    };
+    CK_OBJECT_CLASS  cls   = CKO_PRIVATE_KEY;
+    CK_KEY_TYPE      ktype = CKK_EC;
+    CK_BBOOL         ck_true  = CK_TRUE;
+    CK_BBOOL         ck_false = CK_FALSE;
+    CK_ATTRIBUTE templ[] = {
+        {CKA_CLASS,       &cls,              sizeof(cls)},
+        {CKA_KEY_TYPE,    &ktype,            sizeof(ktype)},
+        {CKA_TOKEN,       &ck_false,         sizeof(ck_false)},
+        {CKA_SENSITIVE,   &ck_true,          sizeof(ck_true)},
+        {CKA_EXTRACTABLE, &ck_false,         sizeof(ck_false)},
+        {CKA_SIGN,        &ck_true,          sizeof(ck_true)},
+        {CKA_DERIVE,      &ck_true,          sizeof(ck_true)},
+        {CKA_EC_PARAMS,   const_cast<uint8_t*>(kP384Oid), sizeof(kP384Oid)},
+        {CKA_VALUE,       priv_bytes.data(), 48},
+    };
+    CK_OBJECT_HANDLE obj = CK_INVALID_HANDLE;
+    CK_RV rv = ck_create_object(templ, 9, &obj);
+    OPENSSL_cleanse(priv_bytes.data(), priv_bytes.size());
+    if (rv != CKR_OK) return 0;
+    return static_cast<CkHandle>(obj);
+}
+
+std::optional<std::vector<uint8_t>> Pkcs11Hsm::ecies_decrypt(
+    CkHandle ik_handle, std::span<const uint8_t> payload)
+{
+    if (finalized_) return std::nullopt;
+    constexpr size_t kPubLen = 97;
+    constexpr size_t kIvLen  = 12;
+    constexpr size_t kTagLen = 16;
+    if (payload.size() < kPubLen + kIvLen + kTagLen) return std::nullopt;
+    CK_ECDH1_DERIVE_PARAMS params{};
+    params.kdf             = CKD_NULL;
+    params.ulSharedDataLen = 0;
+    params.pSharedData     = nullptr;
+    params.ulPublicDataLen = static_cast<CK_ULONG>(kPubLen);
+    params.pPublicData     = const_cast<uint8_t*>(payload.data());
+    CK_MECHANISM mech{CKM_ECDH1_DERIVE, &params, sizeof(params)};
+    CK_OBJECT_CLASS  cls    = CKO_SECRET_KEY;
+    CK_KEY_TYPE      ktype  = CKK_GENERIC_SECRET;
+    CK_ULONG         klen   = 48;
+    CK_BBOOL         ck_true  = CK_TRUE;
+    CK_BBOOL         ck_false = CK_FALSE;
+    CK_ATTRIBUTE templ[] = {
+        {CKA_CLASS,       &cls,      sizeof(cls)},
+        {CKA_KEY_TYPE,    &ktype,    sizeof(ktype)},
+        {CKA_VALUE_LEN,   &klen,     sizeof(klen)},
+        {CKA_TOKEN,       &ck_false, sizeof(ck_false)},
+        {CKA_SENSITIVE,   &ck_false, sizeof(ck_false)},
+        {CKA_EXTRACTABLE, &ck_true,  sizeof(ck_true)},
+    };
+    CK_OBJECT_HANDLE derived_h = CK_INVALID_HANDLE;
+    CK_RV rv = reinterpret_cast<CK_RV(*)(CK_SESSION_HANDLE,CK_MECHANISM*,CK_OBJECT_HANDLE,CK_ATTRIBUTE*,CK_ULONG,CK_OBJECT_HANDLE*)>(fn_->C_DeriveKey)(session_, &mech,
+                                 static_cast<CK_OBJECT_HANDLE>(ik_handle),
+                                 templ, 6, &derived_h);
+    if (rv != CKR_OK) return std::nullopt;
+    std::vector<uint8_t> shared(48);
+    CK_ATTRIBUTE val_attr{CKA_VALUE, shared.data(), 48};
+    rv = ck_get_attribute(derived_h, &val_attr, 1);
+    reinterpret_cast<CK_RV(*)(CK_SESSION_HANDLE,CK_OBJECT_HANDLE)>(fn_->C_DestroyObject)(session_, derived_h);
+    if (rv != CKR_OK) return std::nullopt;
+    std::vector<uint8_t> aes_key(32);
+    {
+        EVP_PKEY_CTX* hctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr);
+        EVP_PKEY_derive_init(hctx);
+        EVP_PKEY_CTX_set_hkdf_md(hctx, EVP_sha384());
+        EVP_PKEY_CTX_set1_hkdf_key(hctx, shared.data(),
+                                   static_cast<int>(shared.size()));
+        EVP_PKEY_CTX_set1_hkdf_salt(hctx, nullptr, 0);
+        static const uint8_t kInfo[] = "cirradio-keyfill";
+        EVP_PKEY_CTX_add1_hkdf_info(hctx, kInfo, sizeof(kInfo) - 1);
+        size_t kl = 32;
+        EVP_PKEY_derive(hctx, aes_key.data(), &kl);
+        EVP_PKEY_CTX_free(hctx);
+    }
+    OPENSSL_cleanse(shared.data(), shared.size());
+    auto iv   = payload.subspan(kPubLen, kIvLen);
+    auto body = payload.subspan(kPubLen + kIvLen);
+    if (body.size() < kTagLen) return std::nullopt;
+    auto ct  = body.subspan(0, body.size() - kTagLen);
+    auto tag = body.subspan(body.size() - kTagLen);
+    std::vector<uint8_t> plaintext(ct.size());
+    EVP_CIPHER_CTX* cctx = EVP_CIPHER_CTX_new();
+    EVP_DecryptInit_ex(cctx, EVP_aes_256_gcm(), nullptr, nullptr, nullptr);
+    EVP_CIPHER_CTX_ctrl(cctx, EVP_CTRL_GCM_SET_IVLEN, static_cast<int>(kIvLen), nullptr);
+    EVP_DecryptInit_ex(cctx, nullptr, nullptr, aes_key.data(), iv.data());
+    int out_len = 0;
+    EVP_DecryptUpdate(cctx, plaintext.data(), &out_len,
+                      ct.data(), static_cast<int>(ct.size()));
+    EVP_CIPHER_CTX_ctrl(cctx, EVP_CTRL_GCM_SET_TAG, static_cast<int>(kTagLen),
+                        const_cast<uint8_t*>(tag.data()));
+    int ok = EVP_DecryptFinal_ex(cctx, plaintext.data() + out_len, &out_len);
+    EVP_CIPHER_CTX_free(cctx);
+    OPENSSL_cleanse(aes_key.data(), aes_key.size());
+    if (ok != 1) return std::nullopt;
+    return plaintext;
+}
 // ── Call helpers (reinterpret_cast boilerplate) ────────────────────────────
 CK_RV Pkcs11Hsm::ck_init(void* a) {
     return reinterpret_cast<CK_RV(*)(void*)>(fn_->C_Initialize)(a);

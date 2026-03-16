@@ -30,7 +30,11 @@ public:
     // Returns nullopt on production HSM — raw import not permitted.
     std::optional<HsmKeyHandle> import_raw(
         std::span<const uint8_t> key_bytes, const KeyLabel& label) override;
-    bool destroy_key(CkHandle kh) override;
+    bool destroy_key(CkHandle kh) override;\
+    CkHandle import_ec_key_der(std::span<const uint8_t> der_priv) override;\
+    std::optional<std::vector<uint8_t>> ecies_decrypt(\
+        CkHandle ik_handle, std::span<const uint8_t> payload) override;\
+    void shutdown() override;
 
 protected:
     // Protected constructor for SoftHsm to pass a pre-opened session.
@@ -59,6 +63,7 @@ protected:
 
 private:
     static constexpr size_t kIvLen  = 12;
+    bool finalized_ = false;
     static constexpr size_t kTagLen = 16;
     static constexpr size_t kKeyLen = 32;
 
