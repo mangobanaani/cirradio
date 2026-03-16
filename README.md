@@ -1,11 +1,10 @@
 # CIRRADIO
 
-> Full-stack milspec-capable SDR — UHF FHSS ad-hoc mesh radio with AES-256
+> Full-stack SDR — UHF FHSS ad-hoc mesh radio with AES-256
 > frequency hopping, PKCS#11 HSM crypto, TDMA MAC, and QPSK+Viterbi modem.
 > SystemVerilog RTL (Zynq-7045 PL) through embedded Linux (PetaLinux/Yocto)
 > to a C++20 comms stack, validated in simulation end-to-end.
 
-![CI](https://github.com/<user>/cirradio/actions/workflows/ci.yml/badge.svg)
 
 ---
 

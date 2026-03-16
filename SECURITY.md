@@ -2,7 +2,7 @@
 
 ## Cryptographic Posture
 
-CIRRADIO uses production-grade algorithms throughout:
+CIRRADIO final version will use following algorithms throughout:
 
 | Purpose              | Algorithm                  | Key size |
 |----------------------|----------------------------|----------|
