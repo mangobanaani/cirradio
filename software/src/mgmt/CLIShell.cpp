@@ -16,6 +16,12 @@ CLIShell::CLIShell() {
     commands_["crypto"] = [this](const std::vector<std::string>& args) {
         return handle_crypto(args);
     };
+    commands_["emcon"] = [this](const std::vector<std::string>& args) {
+        return handle_emcon(args);
+    };
+    commands_["transec"] = [this](const std::vector<std::string>& args) {
+        return handle_transec(args);
+    };
 }
 
 CommandResult CLIShell::execute(const std::string& input) {
@@ -135,6 +141,51 @@ CommandResult CLIShell::handle_crypto(const std::vector<std::string>& args) {
     }
 
     return {false, "unknown crypto subcommand: " + args[0]};
+}
+
+CommandResult CLIShell::handle_emcon(const std::vector<std::string>& args) {
+    if (!emcon_mgr_) return {false, "emcon manager not attached"};
+    if (args.empty()) return {false, "usage: emcon <0|1|2>"};
+    int level = 0;
+    try { level = std::stoi(args[0]); } catch (...) {
+        return {false, "invalid level: " + args[0]};
+    }
+    if (level < 0 || level > 2) return {false, "level must be 0, 1, or 2"};
+    // Downgrade (less restricted) requires unlock token
+    bool needs_unlock = level > emcon_mgr_->current_level();
+    if (!emcon_mgr_->set_level(level, needs_unlock)) {
+        return {false, "EMCON downgrade rejected (locked)"};
+    }
+    return {true, "EMCON set to " + std::to_string(level)};
+}
+
+CommandResult CLIShell::handle_transec(const std::vector<std::string>& args) {
+    if (args.empty() || args[0] == "status") {
+        std::ostringstream oss;
+        oss << "EMCON level: " << (emcon_mgr_ ? emcon_mgr_->current_level() : -1) << "\n";
+        if (transec_cfg_) {
+            oss << "Interleaver depth: " << transec_cfg_->interleaver_depth() << "\n";
+            oss << "Hop rate: " << transec_cfg_->hop_rate() << " hops/sec\n";
+            oss << "Link margin: " << transec_cfg_->link_margin_db() << " dB";
+        }
+        return {true, oss.str()};
+    }
+    if (args[0] == "set" && args.size() >= 3) {
+        if (!transec_cfg_) return {false, "transec config not attached"};
+        if (args[1] == "interleaver") {
+            transec_cfg_->set_interleaver_depth(std::stoi(args[2]));
+            return {true, "interleaver depth set to " + args[2]};
+        }
+        if (args[1] == "hoprate") {
+            transec_cfg_->set_hop_rate(std::stoi(args[2]));
+            return {true, "hop rate set to " + args[2]};
+        }
+        if (args[1] == "margin") {
+            transec_cfg_->set_link_margin_db(std::stof(args[2]));
+            return {true, "link margin set to " + args[2] + " dB"};
+        }
+    }
+    return {false, "usage: transec status | transec set <interleaver|hoprate|margin> <value>"};
 }
 
 }  // namespace cirradio::mgmt

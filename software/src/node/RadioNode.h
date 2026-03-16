@@ -15,6 +15,8 @@
 #include "voice/JitterBuffer.h"
 #include "voice/SimAudioHal.h"
 #include "mgmt/CLIShell.h"
+#include "transec/EmconManager.h"
+#include "transec/TransecConfig.h"
 
 #include <memory>
 #include <vector>
@@ -82,6 +84,9 @@ public:
 
     uint32_t id() const { return id_; }
 
+    transec::EmconManager& emcon_manager() { return emcon_mgr_; }
+    transec::TransecConfig& transec_config() { return transec_cfg_; }
+
 private:
     static constexpr uint8_t kMsgTypeBeacon = 0;
     static constexpr uint8_t kMsgTypeData   = 1;
@@ -123,7 +128,12 @@ private:
     std::vector<uint8_t> identity_private_key_;
     std::vector<uint8_t> identity_public_key_;
     security::CkHandle ik_handle_ = 0;
-    security::NullAxiRegs null_axi_;
+
+    // Declaration order matters: null_axi_ and transec_cfg_ must precede emcon_mgr_,
+    // and emcon_mgr_ must precede security_mgr_ (hook wired in ctor body).
+    security::NullAxiRegs           null_axi_;
+    transec::TransecConfig          transec_cfg_;
+    transec::EmconManager           emcon_mgr_;
     std::unique_ptr<security::SecurityManager> security_mgr_;
 
     // Receive buffers

@@ -114,3 +114,38 @@ TEST_CASE("EmconManager EMCON1 writes reduced TX power", "[transec][emcon]") {
     // Power should be reduced (negative value = attenuation)
     REQUIRE(regs.last_tx_power < 3700); // less than normal power of 3700
 }
+
+#include "mgmt/CLIShell.h"
+
+TEST_CASE("CLIShell emcon command changes EMCON level", "[transec][cli]") {
+    StubAxiRegs regs;
+    cirradio::transec::TransecConfig cfg;
+    cirradio::transec::EmconManager em(regs, cfg);
+    cirradio::mgmt::CLIShell cli;
+    cli.set_emcon_manager(&em);
+    auto r = cli.execute("emcon 1");
+    REQUIRE(r.success);
+    REQUIRE(em.current_level() == 1);
+}
+
+TEST_CASE("CLIShell transec status reports current state", "[transec][cli]") {
+    StubAxiRegs regs;
+    cirradio::transec::TransecConfig cfg;
+    cirradio::transec::EmconManager em(regs, cfg);
+    cirradio::mgmt::CLIShell cli;
+    cli.set_emcon_manager(&em);
+    cli.set_transec_config(&cfg);
+    auto r = cli.execute("transec status");
+    REQUIRE(r.success);
+    REQUIRE(r.output.find("EMCON level") != std::string::npos);
+}
+
+TEST_CASE("CLIShell transec set interleaver updates config", "[transec][cli]") {
+    StubAxiRegs regs;
+    cirradio::transec::TransecConfig cfg;
+    cirradio::mgmt::CLIShell cli;
+    cli.set_transec_config(&cfg);
+    auto r = cli.execute("transec set interleaver 20");
+    REQUIRE(r.success);
+    REQUIRE(cfg.interleaver_depth() == 20);
+}

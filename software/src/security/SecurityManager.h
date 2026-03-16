@@ -8,6 +8,7 @@
 #include "security/KeyFillPort.h"
 #include <memory>
 #include <atomic>
+#include <functional>
 
 namespace cirradio::security {
 
@@ -30,11 +31,14 @@ public:
 
     bool is_zeroized() const noexcept { return zeroized_.load(); }
 
+    void set_post_zeroize_hook(std::function<void()> hook) { post_zeroize_hook_ = std::move(hook); }
+
 private:
     ZeroizeEngine                  zeroize_engine_;
     std::unique_ptr<KeyFillPort>   kfp_;
     std::unique_ptr<TamperMonitor> tamper_;
     std::atomic<bool>              zeroized_{false};
+    std::function<void()>          post_zeroize_hook_;
 };
 
 }  // namespace cirradio::security

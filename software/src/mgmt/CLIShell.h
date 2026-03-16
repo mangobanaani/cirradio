@@ -3,6 +3,8 @@
 #include <functional>
 #include <map>
 #include <vector>
+#include "transec/EmconManager.h"
+#include "transec/TransecConfig.h"
 
 namespace cirradio::mgmt {
 
@@ -18,6 +20,9 @@ public:
     // Execute a command string and return the result.
     CommandResult execute(const std::string& input);
 
+    void set_emcon_manager(transec::EmconManager* em) { emcon_mgr_ = em; }
+    void set_transec_config(transec::TransecConfig* cfg) { transec_cfg_ = cfg; }
+
 private:
     using Handler = std::function<CommandResult(const std::vector<std::string>& args)>;
 
@@ -32,6 +37,8 @@ private:
     CommandResult handle_set(const std::vector<std::string>& args);
     CommandResult handle_net(const std::vector<std::string>& args);
     CommandResult handle_crypto(const std::vector<std::string>& args);
+    CommandResult handle_emcon(const std::vector<std::string>& args);
+    CommandResult handle_transec(const std::vector<std::string>& args);
 
     // State (wired to subsystems via RadioNode constructor injection)
     uint32_t node_id_ = 1;
@@ -39,6 +46,9 @@ private:
     int power_dbm_ = 10;
     bool net_joined_ = false;
     bool keys_active_ = true;
+
+    transec::EmconManager*  emcon_mgr_   = nullptr;
+    transec::TransecConfig* transec_cfg_ = nullptr;
 };
 
 }  // namespace cirradio::mgmt
