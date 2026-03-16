@@ -17,6 +17,8 @@ add_executable(cirradio_tests
     test_pkcs11_hsm.cpp
     test_multinode_stress.cpp
     test_voice_quality.cpp
+    test_tamper.cpp
+    test_keyfill.cpp
 )
 target_link_libraries(cirradio_tests PRIVATE
     cirradio_lib

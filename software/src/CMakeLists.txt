@@ -5,6 +5,10 @@ add_library(cirradio_lib STATIC
     hal/SimChannel.cpp
     hal/SimRadioHal.cpp
     security/EcSign.cpp
+    security/ZeroizeEngine.cpp
+    security/TamperMonitor.cpp
+    security/SecurityManager.cpp
+    security/KeyFillPort.cpp
     security/KeyManager.cpp
     security/Pkcs11Hsm.cpp
     security/SoftHsm.cpp
