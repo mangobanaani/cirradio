@@ -6,6 +6,12 @@
 > SystemVerilog RTL (Zynq-7045 PL) through embedded Linux (PetaLinux/Yocto)
 > to a C++20 comms stack, validated in simulation end-to-end.
 
+![License](https://img.shields.io/github/license/mangobanaani/cirradio)
+![C++](https://img.shields.io/badge/C%2B%2B-20-blue)
+![SystemVerilog](https://img.shields.io/badge/RTL-SystemVerilog-orange)
+![CMake](https://img.shields.io/badge/CMake-3.20%2B-064F8C)
+![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS-lightgrey)
+![Tests](https://img.shields.io/badge/tests-128%20passing-brightgreen)
 
 ---
 
