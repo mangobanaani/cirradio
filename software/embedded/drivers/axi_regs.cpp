@@ -58,4 +58,12 @@ bool AxiRegs::gps_holdover() const { return (status() & STATUS_GPS_HOLDOVER) != 
 int32_t  AxiRegs::rssi_dBm_x100() const { return static_cast<int32_t>(read_reg(REG_RSSI)); }
 uint32_t AxiRegs::hop_counter() const { return read_reg(REG_HOP_COUNTER); }
 
+void AxiRegs::zeroize_fhek() {
+    for (uint32_t i = 0; i < 8; ++i)
+        write_reg(REG_FHEK_0 + i * 4, 0u);
+    write_reg(REG_CONTROL, CTRL_FHEK_ZEROIZE);
+}
+void AxiRegs::halt_fpga_clocks() {
+    write_reg(REG_CONTROL, CTRL_CLOCK_HALT);
+}
 } // namespace cirradio::drivers

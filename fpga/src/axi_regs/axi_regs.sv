@@ -28,6 +28,7 @@ module axi_regs #(
     output logic [31:0]           blacklist_o [0:19],
     output logic [31:0]           slot_bitmap_o,
     output logic signed [31:0]    tx_power_o,
+    output logic [31:0]           ctrl_o,
     input  logic [31:0]           status_i,
     input  logic signed [31:0]    rssi_i,
     input  logic [31:0]           hop_counter_i,
@@ -38,6 +39,7 @@ module axi_regs #(
     logic [31:0] bl_r     [0:19];
     logic [31:0] slotmap_r;
     logic [31:0] txpow_r;
+    logic [31:0] ctrl_r;
 
     // Output assignments
     genvar k;
@@ -49,6 +51,7 @@ module axi_regs #(
     endgenerate
     assign slot_bitmap_o = slotmap_r;
     assign tx_power_o    = txpow_r;
+    assign ctrl_o    = ctrl_r;
 
     // AXI write state machine (single-cycle accept)
     assign s_axi_awready = 1'b1;
@@ -70,6 +73,7 @@ module axi_regs #(
             foreach (bl_r[i])    bl_r[i]    <= '0;
             slotmap_r <= REG_SLOT_BITMAP_RESET;
             txpow_r   <= REG_TX_POWER_RESET;
+            ctrl_r <= '0;
         end else begin
             // Latch write address
             if (aw_fire) wr_addr_r <= s_axi_awaddr;
@@ -90,6 +94,8 @@ module axi_regs #(
                 else if (wa == REG_SLOT_BITMAP) slotmap_r <= s_axi_wdata;
                 // TX power
                 else if (wa == REG_TX_POWER)   txpow_r   <= s_axi_wdata;
+                // Control (write-only: zeroize / halt)
+                else if (wa == REG_CONTROL) ctrl_r <= s_axi_wdata;
                 wr_pending <= 1'b0;
                 s_axi_bvalid <= 1'b1;
             end

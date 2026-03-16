@@ -25,6 +25,11 @@ localparam REG_SLOT_BITMAP     = 12'h070;
 // TX power setpoint: signed, units = dBm * 100 (e.g., 3700 = 37.0 dBm)
 localparam REG_TX_POWER        = 12'h074;
 
+// Control register (write-only): zeroize and halt commands
+localparam REG_CONTROL         = 12'h07C;
+localparam CTRL_FHEK_ZEROIZE   = 32'h0000_0001; // bit 0: clear FHEK + reset FHSS engine
+localparam CTRL_CLOCK_HALT     = 32'h0000_0002; // bit 1: kill FPGA clock enables
+
 // --- Read registers (PL → PS) ---
 // Status flags
 localparam REG_STATUS          = 12'h080;

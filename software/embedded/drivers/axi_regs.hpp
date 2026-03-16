@@ -21,6 +21,9 @@ constexpr uint32_t REG_BLACKLIST_BASE  = 0x020;
 constexpr uint32_t REG_BLACKLIST_COUNT = 20;
 constexpr uint32_t REG_SLOT_BITMAP     = 0x070;
 constexpr uint32_t REG_TX_POWER        = 0x074;
+constexpr uint32_t REG_CONTROL         = 0x07C;
+constexpr uint32_t CTRL_FHEK_ZEROIZE   = 0x00000001u; // bit 0
+constexpr uint32_t CTRL_CLOCK_HALT     = 0x00000002u; // bit 1
 
 // Read registers (PL → PS)
 constexpr uint32_t REG_STATUS          = 0x080;
@@ -48,6 +51,8 @@ public:
     void set_blacklist(std::span<const uint32_t> freqs_khz);
     void set_slot_bitmap(uint32_t bitmap);
     void set_tx_power(int32_t dBm_x100);
+    void zeroize_fhek();      // writes 0 to FHEK_0..7, then REG_CONTROL=CTRL_FHEK_ZEROIZE
+    void halt_fpga_clocks();  // writes REG_CONTROL=CTRL_CLOCK_HALT
 
     uint32_t status() const;
     bool hop_locked() const;
