@@ -1,7 +1,7 @@
 // fpga/src/modem/modem.sv
 // QPSK modem with rate-1/2 K=7 Viterbi FEC.
-// TX: scrambler -> conv encoder -> QPSK mapper -> RRC interpolating filter (4x)
-// RX: RRC decimating filter (4x->2x) -> Gardner TED -> Costas loop -> Viterbi -> descrambler
+// TX: scrambler -> conv encoder -> block interleaver -> QPSK mapper -> RRC interpolating filter (4x)
+// RX: RRC decimating filter (4x->2x) -> Gardner TED -> Costas loop -> deinterleaver -> Viterbi -> descrambler
 `timescale 1ns/1ps
 module modem (
     input  logic        clk,
@@ -18,7 +18,9 @@ module modem (
     input  logic        s_axis_rx_iq_valid,
     // RX byte output
     output logic [7:0]  m_axis_rx_tdata,
-    output logic        m_axis_rx_tvalid
+    output logic        m_axis_rx_tvalid,
+    // Interleaver depth: N rows, 1-32
+    input  logic [5:0]  interleaver_depth_i
 );
 
     // =========================================================================
@@ -83,7 +85,74 @@ module modem (
         end
     end
 
+    // =========================================================================
+    // TX Block Interleaver: N×512 BRAM
+    // Write row-by-row (fill N rows), transmit column-by-column
+    // =========================================================================
+    localparam int ILCOLS = 512;
+
+    logic [8:0]  il_wrow;
+    logic [8:0]  il_wcol;
+    logic [8:0]  il_rrow;
+    logic [8:0]  il_rcol;
+    logic        il_filled;
+    logic        il_tx_active;
+
+    // BRAM: 32 rows × 512 bits each
+    logic [ILCOLS-1:0] il_bram [0:31];
+    logic il_bit_out;
+    logic il_bit_valid_out;
+
+    // Write side
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            il_wrow   <= '0; il_wcol <= '0; il_filled <= '0;
+        end else if (tx_bit_valid) begin
+            il_bram[il_wrow][il_wcol] <= enc_out0;
+            if (il_wcol == ILCOLS - 1) begin
+                il_wcol <= '0;
+                if (il_wrow == interleaver_depth_i - 1) begin
+                    il_wrow   <= '0;
+                    il_filled <= 1'b1;
+                end else begin
+                    il_wrow <= il_wrow + 1'b1;
+                end
+            end else begin
+                il_wcol <= il_wcol + 1'b1;
+            end
+        end
+    end
+
+    // Read side (column-major drain)
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            il_rcol <= '0; il_rrow <= '0;
+            il_tx_active <= '0; il_bit_valid_out <= '0;
+        end else begin
+            il_bit_valid_out <= '0;
+            if (il_filled && !il_tx_active) begin
+                il_tx_active <= 1'b1;
+                il_filled    <= 1'b0;
+            end else if (il_tx_active) begin
+                il_bit_out       <= il_bram[il_rrow][il_rcol];
+                il_bit_valid_out <= 1'b1;
+                if (il_rrow == interleaver_depth_i - 1) begin
+                    il_rrow <= '0;
+                    if (il_rcol == ILCOLS - 1) begin
+                        il_rcol      <= '0;
+                        il_tx_active <= 1'b0;
+                    end else begin
+                        il_rcol <= il_rcol + 1'b1;
+                    end
+                end else begin
+                    il_rrow <= il_rrow + 1'b1;
+                end
+            end
+        end
+    end
+
     // QPSK mapper: 2 encoded bits -> (I, Q) symbols
+    // Feeds from interleaver output (il_bit_out / il_bit_valid_out)
     localparam signed [15:0] POS = 16'h4000;
     localparam signed [15:0] NEG = 16'hC000;
 
@@ -97,13 +166,13 @@ module modem (
             qpsk_valid <= '0; got_first_bit <= '0;
         end else begin
             qpsk_valid <= '0;
-            if (tx_bit_valid) begin
+            if (il_bit_valid_out) begin
                 if (!got_first_bit) begin
-                    first_bit_r  <= tx_enc_bit0;
+                    first_bit_r  <= il_bit_out;
                     got_first_bit <= 1'b1;
                 end else begin
                     qpsk_i       <= first_bit_r ? NEG : POS;
-                    qpsk_q       <= tx_enc_bit0 ? NEG : POS;
+                    qpsk_q       <= il_bit_out  ? NEG : POS;
                     qpsk_valid   <= 1'b1;
                     got_first_bit <= 1'b0;
                 end
@@ -138,7 +207,7 @@ module modem (
     assign m_axis_tx_iq_valid = fir_tx_valid;
 
     // =========================================================================
-    // RX path: RRC matched filter -> Gardner TED -> Costas -> Viterbi -> descramble
+    // RX path: RRC matched filter -> Gardner TED -> Costas -> deinterleaver -> Viterbi -> descramble
     // =========================================================================
 
     // RRC RX decimating filter (fir_rrc, Decimation_Rate=4, output 2x for TED)
@@ -240,9 +309,72 @@ module modem (
     assign rx_bit_i = costas_i[15];
     assign rx_bit_q = costas_q[15];
 
-    // Accumulate 2 bits -> 1 decoded byte (8 pairs)
-    // Convergence skip: discard first 200 symbols before counting output bytes
-    // (implemented by gating m_axis_rx_tvalid until rx_sym_count >= 200)
+    // slicer_bit / slicer_valid feed the deinterleaver
+    logic slicer_bit;
+    logic slicer_valid;
+    assign slicer_bit   = rx_bit_i;  // NOTE: connect to actual signal name if different
+    assign slicer_valid = costas_valid;
+
+    // =========================================================================
+    // RX Block Deinterleaver: N×512 BRAM (column fill, row drain)
+    // =========================================================================
+    logic dil_bram [0:31][0:ILCOLS-1];
+    logic [8:0] dil_wrow, dil_wcol;
+    logic [8:0] dil_rrow, dil_rcol;
+    logic       dil_filled, dil_rx_active;
+    logic       dil_bit_out, dil_bit_valid_out;
+
+    // Write column-by-column
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            dil_wrow <= '0; dil_wcol <= '0; dil_filled <= '0;
+        end else if (slicer_valid) begin
+            dil_bram[dil_wrow][dil_wcol] <= slicer_bit;
+            if (dil_wrow == interleaver_depth_i - 1) begin
+                dil_wrow <= '0;
+                if (dil_wcol == ILCOLS - 1) begin
+                    dil_wcol  <= '0;
+                    dil_filled <= 1'b1;
+                end else begin
+                    dil_wcol <= dil_wcol + 1'b1;
+                end
+            end else begin
+                dil_wrow <= dil_wrow + 1'b1;
+            end
+        end
+    end
+
+    // Read row-by-row to downstream descrambler
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            dil_rrow <= '0; dil_rcol <= '0;
+            dil_rx_active <= '0; dil_bit_valid_out <= '0;
+        end else begin
+            dil_bit_valid_out <= '0;
+            if (dil_filled && !dil_rx_active) begin
+                dil_rx_active <= 1'b1;
+                dil_filled    <= 1'b0;
+            end else if (dil_rx_active) begin
+                dil_bit_out       <= dil_bram[dil_rrow][dil_rcol];
+                dil_bit_valid_out <= 1'b1;
+                if (dil_rcol == ILCOLS - 1) begin
+                    dil_rcol <= '0;
+                    if (dil_rrow == interleaver_depth_i - 1) begin
+                        dil_rrow      <= '0;
+                        dil_rx_active <= 1'b0;
+                    end else begin
+                        dil_rrow <= dil_rrow + 1'b1;
+                    end
+                end else begin
+                    dil_rcol <= dil_rcol + 1'b1;
+                end
+            end
+        end
+    end
+
+    // =========================================================================
+    // RX descrambler (x^7 + x^6 + 1) — consumes dil_bit_out / dil_bit_valid_out
+    // =========================================================================
     logic [7:0] rx_byte_r;
     logic [2:0] rx_bit_cnt = 0;
     logic       rx_first = 0;
@@ -258,12 +390,12 @@ module modem (
             m_axis_rx_tdata <= '0; m_axis_rx_tvalid <= '0;
         end else begin
             m_axis_rx_tvalid <= '0;
-            if (costas_valid) begin
+            if (dil_bit_valid_out) begin
                 if (rx_sym_count < 8'd200)
                     rx_sym_count <= rx_sym_count + 1'b1;
 
                 logic raw_bit, descr_bit;
-                raw_bit   = rx_bit_i;
+                raw_bit   = dil_bit_out;
                 descr_bit = raw_bit ^ lfsr_rx_bit;
                 lfsr_rx   <= {lfsr_rx[5:0], raw_bit};
                 rx_byte_r <= {rx_byte_r[6:0], descr_bit};
