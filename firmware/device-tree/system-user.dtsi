@@ -55,3 +55,32 @@ ref_clk: ref_clk {
 	non-removable;
 	no-1-8-v;
 };
+
+/* Keyfill UART (Phase 7: PS UART1 reassigned from GPS to fill gun)
+ * GPS moved to AXI UART Lite in PL - defer to board bring-up.
+ * /dev/ttyPS1 = 115200 baud, 8N1, hardware flow control
+ */
+
+/ {
+	chosen {
+		bootargs = "console=ttyPS0,115200 earlyprintk dm-verity.dev_wait_timeout=30 ima_policy=tcb rootfstype=squashfs ro isolcpus=1";
+	};
+
+	/* Signing key node for U-Boot verified boot.
+	 * Public key embedded in U-Boot image at signing time (air-gapped station).
+	 */
+	signature {
+		key-dev-key {
+			required = "conf";
+			algo = "sha256,rsa2048";
+			key-name-hint = "dev-key";
+		};
+	};
+};
+
+/* XADC thresholds: OT alarm at 85C, VCCINT alarm enabled */
+&xadc {
+	xlnx,alarm-mask = <0x01>;
+	xlnx,ext-channels-mask = <0>;
+	xlnx,ot-alarm-limit = <0xf870>;
+};

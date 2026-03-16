@@ -56,5 +56,29 @@
 			xlnx,all-outputs = <0x1>;
 			xlnx,gpio-width = <0x8>;
 		};
+
+		/* XADC: on-die temperature + VCCINT monitoring
+		 * Out-of-range triggers GPIO_ENV_ALERT via PL combinational logic
+		 * MIO0=GPIO_TAMPER_MESH, MIO1=GPIO_TAMPER_LID, MIO2=GPIO_ENV_ALERT
+		 * Tamper lines use PS GPIO controller (/dev/gpiochip0), no separate DT node needed.
+		 */
+		xadc: xadc@f8007100 {
+			compatible = "xlnx,zynq-xadc-1.00.a";
+			reg = <0xf8007100 0x20>;
+			interrupts = <0 7 4>;
+			interrupt-parent = <&intc>;
+			clocks = <&clkc 12>;
+			xlnx,channels {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				channel@0 {
+					reg = <0>;
+					xlnx,bipolar;
+				};
+				channel@1 {
+					reg = <1>;
+				};
+			};
+		};
 	};
 };
