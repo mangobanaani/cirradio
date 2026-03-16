@@ -128,6 +128,7 @@ module ad9361_if (
     logic [31:0] tx_fifo_dout;
     logic        tx_fifo_empty, tx_fifo_rd_en;
     logic        tx_fifo_valid_r;
+    logic        tx_fifo_full;
 
     xpm_fifo_async #(
         .FIFO_WRITE_DEPTH(16), .WRITE_DATA_WIDTH(32),
@@ -141,14 +142,14 @@ module ad9361_if (
         .rd_en(tx_fifo_rd_en),
         .dout(tx_fifo_dout),
         .empty(tx_fifo_empty),
-        .full(),
+        .full(tx_fifo_full),
         .rd_data_count(), .wr_data_count(),
         .prog_empty_thresh('0), .prog_full_thresh('0),
         .injectsbiterr('0), .injectdbiterr('0),
         .rst(!fabric_rst_n), .rd_rst_busy(), .wr_rst_busy(),
         .sbiterr(), .dbiterr()
     );
-    assign s_axis_tx_tready = 1'b1;  // fabric side always accepts
+    assign s_axis_tx_tready = !tx_fifo_full;
 
     // TX serialiser state machine (DATA_CLK domain, iserdes_clk_div)
     // Each IQ sample (32 bits = 16b I + 16b Q) is sent as:
