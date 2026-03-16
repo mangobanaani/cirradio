@@ -43,8 +43,8 @@ module fhss_engine (
 
     // GPS holdover detection
     // Missing PPS after GPS_HOLDOVER_CYCLES → assert gps_holdover_o
-    localparam int GPS_HOLDOVER_CYCLES = 15_000_000;
-    logic [24:0] pps_watchdog;
+    localparam int GPS_HOLDOVER_CYCLES = 1_500_000_000;
+    logic [30:0] pps_watchdog;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -57,7 +57,7 @@ module fhss_engine (
                 pps_watchdog   <= 0;
                 hop_lock_o     <= 1;
                 gps_holdover_o <= 0;
-            end else if (pps_watchdog < GPS_HOLDOVER_CYCLES[24:0]) begin
+            end else if (pps_watchdog < GPS_HOLDOVER_CYCLES[30:0]) begin
                 pps_watchdog <= pps_watchdog + 1;
             end else begin
                 gps_holdover_o <= 1;

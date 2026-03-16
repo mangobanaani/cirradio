@@ -64,9 +64,9 @@ localparam REG_BLACKLIST_SIZE    = 12'h104;
 // FEC block interleaver depth N (rows). Range 1–32. Default 10.
 localparam REG_INTERLEAVER_DEPTH = 12'h108;
 
-// PA ramp attenuation step size in dBm×100 per cycle. PS pre-computes.
-// Default 4 = 40 dBm/1000 cycles (linear ramp from -40 dBm to 0 in 1000 cycles).
-localparam REG_PA_RAMP_STEP      = 12'h10C;
+// PA ramp attenuation step size in (dBm×100) per cycle. PS pre-computes.
+// Default 4 = 4 attenuation units/cycle (ramp: 4000→0 in 1000 cycles = 10µs at 100MHz).
+localparam REG_PA_RAMP_STEPS     = 12'h10C;
 
 // EMCON control: [1:0] = level (0/1/2), [2] = lock bit.
 // Reset to 2 (normal ops). Lock bit prevents locked downgrade.

@@ -82,47 +82,38 @@ module tdma_mac (
     end
 
     // =========================================================================
-    // PA ramp counter
+    // PA ramp
     // pa_atten_x100_o: attenuation in hundredths of a dB
     //   0x0FA0 = 4000 → −40 dB (fully attenuated)
     //   0x0000 →   0 dB (full power)
+    // pa_ramp_steps_i: attenuation units decremented/incremented each cycle.
+    // Default 4 → ramp takes 4000/4 = 1000 cycles = 10 µs at 100 MHz.
     // =========================================================================
-    logic [31:0] ramp_cnt;
-    logic        ramp_up;
-    logic        tx_slot_prev;
+    logic tx_slot_prev;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            ramp_cnt        <= '0;
-            pa_atten_x100_o <= 16'h0FA0;  // −40 dB × 100
-            tx_slot_prev    <= '0;
-            ramp_up         <= '0;
+            pa_atten_x100_o <= 16'h0FA0;  // start at −40 dB × 100
+            tx_slot_prev    <= 1'b0;
         end else begin
-            tx_slot_prev <= tx_slot;
+            tx_slot_prev <= pa_enable_o;
 
-            if (tx_slot && !tx_slot_prev) begin
-                ramp_cnt        <= pa_ramp_steps_i;
-                ramp_up         <= 1'b1;
-                pa_atten_x100_o <= 16'h0FA0;
-            end else if (!tx_slot && tx_slot_prev) begin
-                ramp_cnt        <= pa_ramp_steps_i;
-                ramp_up         <= 1'b0;
-            end else if (ramp_cnt > 0) begin
-                ramp_cnt <= ramp_cnt - 1;
-                if (ramp_up) begin
-                    if (pa_atten_x100_o > pa_ramp_steps_i[15:0])
-                        pa_atten_x100_o <= pa_atten_x100_o - pa_ramp_steps_i[15:0];
-                    else
-                        pa_atten_x100_o <= '0;
-                end else begin
-                    if (pa_atten_x100_o + pa_ramp_steps_i[15:0] < 16'h0FA0)
-                        pa_atten_x100_o <= pa_atten_x100_o + pa_ramp_steps_i[15:0];
-                    else
-                        pa_atten_x100_o <= 16'h0FA0;
-                end
+            if (pa_enable_o) begin
+                // Ramp up: decrement attenuation each cycle
+                if (pa_atten_x100_o >= pa_ramp_steps_i[15:0])
+                    pa_atten_x100_o <= pa_atten_x100_o - pa_ramp_steps_i[15:0];
+                else
+                    pa_atten_x100_o <= 16'd0;
+            end else begin
+                // Ramp down: increment attenuation each cycle
+                if (pa_atten_x100_o + pa_ramp_steps_i[15:0] <= 16'h0FA0)
+                    pa_atten_x100_o <= pa_atten_x100_o + pa_ramp_steps_i[15:0];
+                else
+                    pa_atten_x100_o <= 16'h0FA0;
             end
         end
     end
+
 
     // =========================================================================
     // Preamble: assert for first 3000 cycles of owned TX slot (30 ms at 100 MHz)

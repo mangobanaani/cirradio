@@ -32,7 +32,7 @@ module axi_regs #(
     output logic [31:0]           hop_period_o,
     output logic [31:0]           blacklist_size_o,
     output logic [5:0]            interleaver_depth_o,
-    output logic [31:0]           pa_ramp_step_o,
+    output logic [31:0]           pa_ramp_steps_o,
     output logic [31:0]           emcon_ctrl_o,
     output logic                  emcon_ctrl_wr_o,
     output logic                  emcon_unlock_wr_o,
@@ -124,7 +124,7 @@ module axi_regs #(
                 else if (wa == REG_HOP_RATE)          hop_period_r      <= s_axi_wdata;
                 else if (wa == REG_BLACKLIST_SIZE)    bl_size_r         <= s_axi_wdata;
                 else if (wa == REG_INTERLEAVER_DEPTH) il_depth_r        <= s_axi_wdata;
-                else if (wa == REG_PA_RAMP_STEP)      pa_step_r         <= s_axi_wdata;
+                else if (wa == REG_PA_RAMP_STEPS)      pa_step_r         <= s_axi_wdata;
                 else if (wa == REG_EMCON_CTRL)  begin emcon_ctrl_r      <= s_axi_wdata;
                                                       emcon_ctrl_wr_r   <= 1'b1; end
                 else if (wa == REG_EMCON_UNLOCK)      emcon_unlock_wr_r <= 1'b1;
@@ -181,7 +181,7 @@ module axi_regs #(
     assign hop_period_o        = hop_period_r;
     assign blacklist_size_o    = bl_size_r;
     assign interleaver_depth_o = il_depth_r[5:0];
-    assign pa_ramp_step_o      = pa_step_r;
+    assign pa_ramp_steps_o      = pa_step_r;
     assign emcon_ctrl_o        = emcon_ctrl_r;
     assign emcon_ctrl_wr_o     = emcon_ctrl_wr_r;
     assign emcon_unlock_wr_o   = emcon_unlock_wr_r;
