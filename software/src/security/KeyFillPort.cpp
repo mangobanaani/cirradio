@@ -4,7 +4,9 @@
 #include <openssl/evp.h>
 #include <openssl/ec.h>
 #include <openssl/rand.h>
+#include <openssl/x509.h>
 #include <cstring>
+#include <signal.h>
 
 #ifdef __linux__
 #include <termios.h>
@@ -12,6 +14,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/select.h>
+#include <sys/socket.h>
 #include <chrono>
 
 namespace cirradio::security {
@@ -68,6 +71,18 @@ void KeyFillPort::reset_state() noexcept {
     clear_session();
 }
 
+static ssize_t safe_write(int fd, const void* buf, size_t n) {
+#if defined(MSG_NOSIGNAL)
+    return send(fd, buf, n, MSG_NOSIGNAL);
+#elif defined(SO_NOSIGPIPE)
+    int one = 1;
+    setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof(one));
+    return write(fd, buf, n);
+#else
+    return write(fd, buf, n);
+#endif
+}
+
 bool KeyFillPort::send_frame(FillMsgType type, std::span<const uint8_t> payload) {
     if (fd_ < 0) return false;
     uint8_t hdr[3];
@@ -75,9 +90,9 @@ bool KeyFillPort::send_frame(FillMsgType type, std::span<const uint8_t> payload)
     uint16_t len = static_cast<uint16_t>(payload.size());
     hdr[1] = static_cast<uint8_t>((len >> 8) & 0xFF);
     hdr[2] = static_cast<uint8_t>(len & 0xFF);
-    if (write(fd_, hdr, 3) != 3) return false;
+    if (safe_write(fd_, hdr, 3) != 3) return false;
     if (!payload.empty()) {
-        ssize_t n = write(fd_, payload.data(), payload.size());
+        ssize_t n = safe_write(fd_, payload.data(), payload.size());
         if (n != static_cast<ssize_t>(payload.size())) return false;
     }
     return true;
