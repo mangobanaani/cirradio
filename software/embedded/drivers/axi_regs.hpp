@@ -23,7 +23,16 @@ constexpr uint32_t REG_SLOT_BITMAP     = 0x070;
 constexpr uint32_t REG_TX_POWER        = 0x074;
 constexpr uint32_t REG_CONTROL         = 0x07C;
 constexpr uint32_t CTRL_FHEK_ZEROIZE   = 0x00000001u; // bit 0
+
 constexpr uint32_t CTRL_CLOCK_HALT     = 0x00000002u; // bit 1
+
+// TRANSEC registers (0x100–0x114)
+constexpr uint32_t REG_HOP_RATE          = 0x100;
+constexpr uint32_t REG_BLACKLIST_SIZE    = 0x104;
+constexpr uint32_t REG_INTERLEAVER_DEPTH = 0x108;
+constexpr uint32_t REG_PA_RAMP_STEPS     = 0x10C;
+constexpr uint32_t REG_EMCON_CTRL        = 0x110;
+constexpr uint32_t REG_EMCON_UNLOCK      = 0x114;
 
 // Read registers (PL → PS)
 constexpr uint32_t REG_STATUS          = 0x080;
@@ -53,6 +62,15 @@ public:
     void set_tx_power(int32_t dBm_x100);
     void zeroize_fhek();      // writes 0 to FHEK_0..7, then REG_CONTROL=CTRL_FHEK_ZEROIZE
     void halt_fpga_clocks();  // writes REG_CONTROL=CTRL_CLOCK_HALT
+
+    // TRANSEC setters
+    void set_hop_rate(uint32_t hops_per_sec);
+    void set_blacklist_size(uint32_t count);
+    void set_interleaver_depth(uint32_t depth);
+    void set_pa_ramp_steps(uint32_t cycles);
+    void set_emcon_ctrl(uint32_t value);
+    void write_emcon_unlock();
+    uint32_t emcon_level() const;
 
     uint32_t status() const;
     bool hop_locked() const;

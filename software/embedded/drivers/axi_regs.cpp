@@ -63,7 +63,29 @@ void AxiRegs::zeroize_fhek() {
         write_reg(REG_FHEK_0 + i * 4, 0u);
     write_reg(REG_CONTROL, CTRL_FHEK_ZEROIZE);
 }
-void AxiRegs::halt_fpga_clocks() {
+void AxiRegs::halt_fpga_clocks() {
     write_reg(REG_CONTROL, CTRL_CLOCK_HALT);
+}
+
+void AxiRegs::set_hop_rate(uint32_t hops_per_sec) {
+    write_reg(REG_HOP_RATE, hops_per_sec);
+}
+void AxiRegs::set_blacklist_size(uint32_t count) {
+    write_reg(REG_BLACKLIST_SIZE, count);
+}
+void AxiRegs::set_interleaver_depth(uint32_t depth) {
+    write_reg(REG_INTERLEAVER_DEPTH, depth);
+}
+void AxiRegs::set_pa_ramp_steps(uint32_t cycles) {
+    write_reg(REG_PA_RAMP_STEPS, cycles);
+}
+void AxiRegs::set_emcon_ctrl(uint32_t value) {
+    write_reg(REG_EMCON_CTRL, value);
+}
+void AxiRegs::write_emcon_unlock() {
+    write_reg(REG_EMCON_UNLOCK, 0xA5C3'3C5Au);
+}
+uint32_t AxiRegs::emcon_level() const {
+    return read_reg(REG_EMCON_CTRL) & 0x3u;
 }
 } // namespace cirradio::drivers
