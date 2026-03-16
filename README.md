@@ -1,7 +1,8 @@
 # CIRRADIO
 
-> Full-stack SDR — UHF FHSS ad-hoc mesh radio with AES-256
-> frequency hopping, PKCS#11 HSM crypto, TDMA MAC, and QPSK+Viterbi modem.
+> Full-stack SDR — UHF FHSS ad-hoc mesh radio with AES-256 frequency hopping,
+> PKCS#11 HSM crypto, TDMA MAC, QPSK+Viterbi modem, and TRANSEC (11,480-channel
+> anti-jam FHSS, EMCON 0/1/2 emission control, adaptive per-link power control).
 > SystemVerilog RTL (Zynq-7045 PL) through embedded Linux (PetaLinux/Yocto)
 > to a C++20 comms stack, validated in simulation end-to-end.
 
@@ -12,10 +13,13 @@
 
 CIRRADIO is a tactical UHF frequency-hopping spread-spectrum (FHSS) mesh radio
 designed to NSA/MIL-STD-inspired requirements. It covers the 225–512 MHz
-military UHF band with 287 hop channels, AES-256 frequency-hop sequencing,
-TDMA slot MAC, and a PKCS#11-abstracted HSM crypto layer. The target hardware
-is a custom Zynq-7045 + AD9361 board; the full software
-stack runs and passes tests today on any Linux or macOS machine without hardware.
+military UHF band with 11,480 hop channels at 25 kHz spacing, GPS-locked 100
+hops/sec AES-256-ECB sequencing, TDMA slot MAC, and a PKCS#11-abstracted HSM
+crypto layer. The TRANSEC subsystem adds three-tier emission control (EMCON
+0/1/2), FEC block interleaving, burst-mode PA ramping, and adaptive per-link
+power control. The target hardware is a custom Zynq-7045 + AD9361 board; the
+full software stack runs and passes tests today on any Linux or macOS machine
+without hardware.
 
 ---
 
@@ -57,7 +61,8 @@ RF Front-End  (LNA · PA · bandpass filter · T/R switch)
 | FPGA DSP            | SystemVerilog, Zynq-7045 PL         | Channelizer, modem, FHSS engine, TDMA MAC  | XSim verified   |
 | Embedded Linux      | PetaLinux 2024.2 / Yocto            | BSP, device tree, Yocto app layer          | Config complete |
 | Hardware HAL        | libiio, UIO mmap, gpsd              | IRadioHal + IGpsHal for Zynq ARM           | Code complete   |
-| Comms Stack         | C++20, CMake, Boost, OpenSSL        | Full SCA-inspired radio stack              | 97 tests pass   |
+| Comms Stack         | C++20, CMake, Boost, OpenSSL        | Full SCA-inspired radio stack              | 128 tests pass  |
+| TRANSEC             | C++20 + SystemVerilog               | Anti-jam FHSS, EMCON, adaptive power       | Complete        |
 | Crypto / HSM        | OpenSSL, PKCS#11, SoftHSM2          | AES-256-GCM, ECDSA P-384, key management  | Tests pass      |
 | Mesh Networking     | Custom OLSR adaptation              | Ad-hoc peer discovery, net join            | Tests pass      |
 | Voice               | Codec2 (3200 bps)                   | Open voice codec; MELPe placeholder        | Tests pass      |
@@ -66,9 +71,15 @@ RF Front-End  (LNA · PA · bandpass filter · T/R switch)
 
 ## What Makes It Milspec-Capable
 
-- **287-channel UHF FHSS** (225–512 MHz, 1 MHz spacing) — AES-256-ECB hop sequencer;
-  hop key (FHEK) is cryptographically separate from traffic key (TEK) so TEK compromise
-  does not reveal the hop pattern
+- **11,480-channel UHF FHSS** (225–512 MHz, 25 kHz spacing) — GPS-locked 100 hops/sec
+  AES-256-ECB hop sequencer with `hop_index` field for deterministic intra-second
+  sequences; FHEK cryptographically separate from TEK so TEK compromise does not
+  reveal the hop pattern
+- **TRANSEC subsystem** — three-tier EMCON (0=silence, 1=beacon-only −20 dB,
+  2=normal), hardware-enforced lock bit with one-time unlock token, tamper→EMCON-0
+  callback; FEC block interleaver (N×512 BRAM, depth 1–32, default 10 = 100 ms
+  jammer dwell); burst-mode PA ramp (configurable attenuation step, 10 µs default);
+  adaptive per-link power control from beacon RSSI table (max 256 peers, 300 s expiry)
 - **PKCS#11 HSM abstraction** — `IHsmEngine` interface + `Pkcs11Hsm` dlopen loader
   accepts any PKCS#11-compliant HSM module (Thales, Utimaco, YubiHSM, etc.) without
   code changes; SoftHSM2 used for development/CI
@@ -115,7 +126,7 @@ cmake --build software/build -j$(nproc)
 **Test:**
 ```bash
 ctest --test-dir software/build --output-on-failure
-# Expected: 100% tests passed, 0 tests failed out of 97
+# Expected: 100% tests passed, 0 tests failed out of 128
 ```
 
 ---
