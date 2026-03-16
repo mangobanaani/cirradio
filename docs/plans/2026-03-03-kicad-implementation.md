@@ -1,6 +1,6 @@
 # CIRRADIO Dev Board KiCad Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Complete KiCad project for the CIRRADIO dev board -- schematic capture, PCB layout, and manufacturing outputs (Gerbers, BOM, assembly files) ready for fabrication.
 

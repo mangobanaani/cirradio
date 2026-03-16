@@ -1,6 +1,6 @@
 # Phase 1: Desktop Software Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Build the complete CIRRADIO C++ software stack running on desktop Linux with simulated RF, enabling multi-node mesh networking, FHSS, encrypted voice/data, and full SCA framework -- all without hardware.
 

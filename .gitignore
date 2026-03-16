@@ -12,3 +12,13 @@ compile_commands.json
 .worktrees/
 fpga/vivado/
 fpga/vivado/*.xsa
+fpga/.Xil/
+*.jou
+*.log
+*.str
+software/build/
+software/.cache/
+__pycache__/
+*.pyc
+*.pyo
+tools/board-test/results/
