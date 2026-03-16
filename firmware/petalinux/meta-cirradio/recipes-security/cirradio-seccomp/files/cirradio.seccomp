@@ -1,0 +1,22 @@
+# Seccomp allowlist for cirradio daemon (libseccomp filter format)
+# Architecture: ARM (Zynq-7045 Cortex-A9)
+
+# File I/O
+read write open close openat fstat lstat stat
+ioctl fcntl poll epoll_create1 epoll_ctl epoll_wait select pselect6
+mmap munmap mprotect brk sbrk
+# Process
+getpid gettid clone futex nanosleep clock_gettime clock_nanosleep
+sched_setscheduler sched_getscheduler sched_setparam sched_getparam
+set_tid_address
+# Network (UHF mesh sockets)
+socket bind connect accept4 sendto recvfrom sendmsg recvmsg getsockopt setsockopt
+# Signal
+rt_sigaction rt_sigprocmask rt_sigreturn
+# System
+exit exit_group
+# Reboot (zeroize path only - allowed but gated by capability)
+reboot
+# HSM PKCS#11 (dlopen)
+mmap2 munmap mprotect
+# Default action = SCMP_ACT_KILL_PROCESS for all others
