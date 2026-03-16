@@ -151,3 +151,30 @@ TEST_CASE("CLIShell transec set interleaver updates config", "[transec][cli]") {
     REQUIRE(r.success);
     REQUIRE(cfg.interleaver_depth() == 20);
 }
+
+TEST_CASE("TransecConfig evict_stale_peers handles now_ms < last_beacon_ms safely", "[transec]") {
+    TransecConfig cfg;
+    cfg.update_peer_rssi(1, -60.0f, 1000); // recorded at t=1000ms
+    cfg.evict_stale_peers(0); // now_ms=0 < last_beacon_ms=1000 — must not evict
+    REQUIRE(cfg.required_power_dbm(1) == Approx(-50.0f)); // still present
+}
+
+TEST_CASE("TransecConfig no crash on bad CLI input - stoi exception handled", "[transec][cli]") {
+    StubAxiRegs regs;
+    cirradio::transec::TransecConfig cfg;
+    cirradio::transec::EmconManager em(regs, cfg);
+    cirradio::mgmt::CLIShell cli;
+    cli.set_transec_config(&cfg);
+    auto r = cli.execute("transec set interleaver abc");
+    REQUIRE(!r.success);
+    REQUIRE(r.output.find("invalid") != std::string::npos);
+}
+
+TEST_CASE("EmconManager force_emcon0 sets lock bit", "[transec][emcon]") {
+    StubAxiRegs regs;
+    cirradio::transec::TransecConfig cfg;
+    cirradio::transec::EmconManager em(regs, cfg);
+    em.force_emcon0();
+    REQUIRE(em.current_level() == 0);
+    REQUIRE((regs.last_emcon_ctrl & 0x4u) != 0); // lock bit must be set
+}

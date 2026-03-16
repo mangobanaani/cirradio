@@ -173,22 +173,32 @@ CommandResult CLIShell::handle_transec(const std::vector<std::string>& args) {
     if (args[0] == "set" && args.size() >= 3) {
         if (!transec_cfg_) return {false, "transec config not attached"};
         if (args[1] == "interleaver") {
-            int depth = std::stoi(args[2]);
+            int depth = 0;
+            try { depth = std::stoi(args[2]); } catch (...) {
+                return {false, "invalid value: " + args[2]};
+            }
             transec_cfg_->set_interleaver_depth(depth);
             if (axi_regs_) axi_regs_->set_interleaver_depth(static_cast<uint32_t>(transec_cfg_->interleaver_depth()));
             return {true, "interleaver depth set to " + std::to_string(transec_cfg_->interleaver_depth())};
         }
         if (args[1] == "hoprate") {
-            int rate = std::stoi(args[2]);
+            int rate = 0;
+            try { rate = std::stoi(args[2]); } catch (...) {
+                return {false, "invalid value: " + args[2]};
+            }
             transec_cfg_->set_hop_rate(rate);
-            if (axi_regs_ && rate > 0) {
-                uint32_t cycles = static_cast<uint32_t>(100'000'000 / rate);
+            if (axi_regs_ && transec_cfg_->hop_rate() > 0) {
+                uint32_t cycles = static_cast<uint32_t>(100'000'000 / transec_cfg_->hop_rate());
                 axi_regs_->set_hop_rate(cycles);
             }
             return {true, "hop rate set to " + std::to_string(transec_cfg_->hop_rate()) + " hops/sec"};
         }
         if (args[1] == "margin") {
-            transec_cfg_->set_link_margin_db(std::stof(args[2]));
+            float margin = 0.0f;
+            try { margin = std::stof(args[2]); } catch (...) {
+                return {false, "invalid value: " + args[2]};
+            }
+            transec_cfg_->set_link_margin_db(margin);
             return {true, "link margin set to " + args[2] + " dB"};
         }
     }

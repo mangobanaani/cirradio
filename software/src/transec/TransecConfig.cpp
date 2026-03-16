@@ -23,7 +23,8 @@ float TransecConfig::required_power_dbm(uint32_t peer) const {
 
 void TransecConfig::evict_stale_peers(uint64_t now_ms) {
     for (auto it = peers_.begin(); it != peers_.end(); ) {
-        if (now_ms - it->second.last_beacon_ms > kEntryExpiryMs)
+        if (now_ms > it->second.last_beacon_ms &&
+            now_ms - it->second.last_beacon_ms > kEntryExpiryMs)
             it = peers_.erase(it);
         else
             ++it;

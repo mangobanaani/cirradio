@@ -1,5 +1,6 @@
 // software/src/transec/EmconManager.cpp
 #include "transec/EmconManager.h"
+#include <chrono>
 
 namespace cirradio::transec {
 
@@ -22,12 +23,15 @@ bool EmconManager::set_level(int level, bool unlock) {
 
 void EmconManager::force_emcon0() {
     level_ = 0;
-    regs_.set_emcon_ctrl(0u); // level=0, lock=0 (force ignores lock)
-    regs_.set_tx_power(0);    // 0 dBm (no TX anyway — PA killed by EMCON gate)
+    regs_.set_emcon_ctrl(0x4u); // level=0, lock=1 (tamper-locked silence)
+    regs_.set_tx_power(0);      // 0 dBm (no TX anyway — PA killed by EMCON gate)
 }
 
 void EmconManager::on_beacon_rssi(uint32_t peer, float rssi_dbm) {
-    cfg_.update_peer_rssi(peer, rssi_dbm);
+    auto now_ms = static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()).count());
+    cfg_.update_peer_rssi(peer, rssi_dbm, now_ms);
 }
 
 void EmconManager::apply_level(int level) {
