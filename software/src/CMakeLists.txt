@@ -25,6 +25,7 @@ add_library(cirradio_lib STATIC
     voice/SimAudioHal.cpp
     mgmt/CLIShell.cpp
     node/RadioNode.cpp
+    transec/TransecConfig.cpp
 )
 target_include_directories(cirradio_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}

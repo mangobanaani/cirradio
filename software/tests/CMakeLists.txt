@@ -19,6 +19,7 @@ add_executable(cirradio_tests
     test_voice_quality.cpp
     test_tamper.cpp
     test_keyfill.cpp
+    TransecTests.cpp
 )
 target_link_libraries(cirradio_tests PRIVATE
     cirradio_lib
