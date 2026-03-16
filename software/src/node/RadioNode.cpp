@@ -67,6 +67,10 @@ RadioNode::RadioNode(uint32_t id, std::shared_ptr<hal::SimChannel> channel)
     // Generate EC P-384 identity key pair for NetJoin
     generate_identity_keys();
 
+    // Create SecurityManager
+    security_mgr_ = std::make_unique<security::SecurityManager>(
+        *key_mgr_, *hsm_, null_axi_, ik_handle_);
+
     // Create NetJoin with identity keys
     net_join_ = std::make_unique<network::NetJoin>(
         id, identity_private_key_, identity_public_key_);
@@ -395,6 +399,11 @@ void RadioNode::generate_identity_keys() {
     }
 
     EVP_PKEY_free(pkey);
+
+    // Import private key into HSM for SecurityManager
+    if (!identity_private_key_.empty()) {
+        ik_handle_ = hsm_->import_ec_key_der(identity_private_key_);
+    }
 }
 
 void RadioNode::transmit_on_channel(hal::Frequency freq,

@@ -3,6 +3,8 @@
 #include "hal/SimRadioHal.h"
 #include "hal/Types.h"
 #include "security/SoftHsm.h"
+#include "security/IAxiRegs.h"
+#include "security/SecurityManager.h"
 #include "security/KeyManager.h"
 #include "fhss/HopSequencer.h"
 #include "tdma/SlotScheduler.h"
@@ -120,6 +122,9 @@ private:
     // EC identity keys (DER-encoded)
     std::vector<uint8_t> identity_private_key_;
     std::vector<uint8_t> identity_public_key_;
+    security::CkHandle ik_handle_ = 0;
+    security::NullAxiRegs null_axi_;
+    std::unique_ptr<security::SecurityManager> security_mgr_;
 
     // Receive buffers
     std::vector<ReceivedData> data_inbox_;
