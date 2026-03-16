@@ -29,6 +29,14 @@ module axi_regs #(
     output logic [31:0]           slot_bitmap_o,
     output logic signed [31:0]    tx_power_o,
     output logic [31:0]           ctrl_o,
+    output logic [31:0]           hop_period_o,
+    output logic [31:0]           blacklist_size_o,
+    output logic [5:0]            interleaver_depth_o,
+    output logic [31:0]           pa_ramp_step_o,
+    output logic [31:0]           emcon_ctrl_o,
+    output logic                  emcon_ctrl_wr_o,
+    output logic                  emcon_unlock_wr_o,
+    output logic [31:0]           axi_wdata_o,
     input  logic [31:0]           status_i,
     input  logic signed [31:0]    rssi_i,
     input  logic [31:0]           hop_counter_i,
@@ -40,6 +48,15 @@ module axi_regs #(
     logic [31:0] slotmap_r;
     logic [31:0] txpow_r;
     logic [31:0] ctrl_r;
+
+    // TRANSEC register storage
+    logic [31:0] hop_period_r;
+    logic [31:0] bl_size_r;
+    logic [31:0] il_depth_r;
+    logic [31:0] pa_step_r;
+    logic [31:0] emcon_ctrl_r;
+    logic        emcon_ctrl_wr_r;
+    logic        emcon_unlock_wr_r;
 
     // Output assignments
     genvar k;
@@ -67,13 +84,20 @@ module axi_regs #(
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            s_axi_bvalid <= '0;
-            wr_pending   <= '0;
+            s_axi_bvalid      <= '0;
+            wr_pending        <= '0;
             foreach (fhek_r[i])  fhek_r[i]  <= '0;
             foreach (bl_r[i])    bl_r[i]    <= '0;
-            slotmap_r <= REG_SLOT_BITMAP_RESET;
-            txpow_r   <= REG_TX_POWER_RESET;
-            ctrl_r <= '0;
+            slotmap_r         <= REG_SLOT_BITMAP_RESET;
+            txpow_r           <= REG_TX_POWER_RESET;
+            ctrl_r            <= '0;
+            hop_period_r      <= 32'd1_000_000;
+            bl_size_r         <= 32'd20;
+            il_depth_r        <= 32'd10;
+            pa_step_r         <= 32'd4;
+            emcon_ctrl_r      <= 32'd2;
+            emcon_ctrl_wr_r   <= '0;
+            emcon_unlock_wr_r <= '0;
         end else begin
             // Latch write address
             if (aw_fire) wr_addr_r <= s_axi_awaddr;
@@ -96,9 +120,17 @@ module axi_regs #(
                 else if (wa == REG_TX_POWER)   txpow_r   <= s_axi_wdata;
                 // Control (write-only: zeroize / halt)
                 else if (wa == REG_CONTROL) ctrl_r <= s_axi_wdata;
+                // TRANSEC registers
+                else if (wa == REG_HOP_RATE)          hop_period_r      <= s_axi_wdata;
+                else if (wa == REG_BLACKLIST_SIZE)    bl_size_r         <= s_axi_wdata;
+                else if (wa == REG_INTERLEAVER_DEPTH) il_depth_r        <= s_axi_wdata;
+                else if (wa == REG_PA_RAMP_STEP)      pa_step_r         <= s_axi_wdata;
+                else if (wa == REG_EMCON_CTRL)  begin emcon_ctrl_r      <= s_axi_wdata;
+                                                      emcon_ctrl_wr_r   <= 1'b1; end
+                else if (wa == REG_EMCON_UNLOCK)      emcon_unlock_wr_r <= 1'b1;
                 wr_pending <= 1'b0;
                 s_axi_bvalid <= 1'b1;
-            end
+            end else begin emcon_ctrl_wr_r <= '0; emcon_unlock_wr_r <= '0; end
 
             if (s_axi_bvalid && s_axi_bready) s_axi_bvalid <= 1'b0;
         end
@@ -121,6 +153,7 @@ module axi_regs #(
                     REG_STATUS:       s_axi_rdata <= status_i;
                     REG_RSSI:         s_axi_rdata <= rssi_i;
                     REG_HOP_COUNTER:  s_axi_rdata <= hop_counter_i;
+                    REG_EMCON_CTRL:   s_axi_rdata <= emcon_ctrl_r;
                     default: begin
                         if (s_axi_araddr >= REG_FHEK_0 &&
                             s_axi_araddr <= REG_FHEK_7)
@@ -143,4 +176,14 @@ module axi_regs #(
             end
         end
     end
+
+    // TRANSEC output assignments
+    assign hop_period_o        = hop_period_r;
+    assign blacklist_size_o    = bl_size_r;
+    assign interleaver_depth_o = il_depth_r[5:0];
+    assign pa_ramp_step_o      = pa_step_r;
+    assign emcon_ctrl_o        = emcon_ctrl_r;
+    assign emcon_ctrl_wr_o     = emcon_ctrl_wr_r;
+    assign emcon_unlock_wr_o   = emcon_unlock_wr_r;
+    assign axi_wdata_o         = s_axi_wdata;
 endmodule
