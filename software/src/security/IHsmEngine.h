@@ -74,6 +74,22 @@ public:
 
     // Destroy key object; called by HsmKeyHandle destructor.
     virtual bool destroy_key(CkHandle kh) = 0;
+
+    // Store DER-encoded EC P-384 private key; returns opaque handle.
+    // SoftHsm: stores in memory. Pkcs11Hsm: C_CreateObject(CKO_PRIVATE_KEY).
+    virtual CkHandle import_ec_key_der(std::span<const uint8_t> der_priv) = 0;
+
+    // ECIES decrypt using device identity key.
+    // Payload format: ephemeral_pub(97B P-384 uncompressed) | IV(12B) | ciphertext | GCM_tag(16B)
+    // Derives shared secret via ECDH P-384, applies HKDF-SHA-384("cirradio-keyfill"),
+    // decrypts with AES-256-GCM. Returns plaintext or nullopt on any failure.
+    virtual std::optional<std::vector<uint8_t>>
+        ecies_decrypt(CkHandle ik_handle,
+                      std::span<const uint8_t> ecies_payload) = 0;
+
+    // Idempotent teardown: C_Logout + C_CloseSession + C_Finalize.
+    // Safe to call from both ZeroizeEngine and destructor.
+    virtual void shutdown() = 0;
 };
 
 // HsmKeyHandle::reset() defined here to avoid circular header dependency.
